@@ -11,6 +11,7 @@ have a valid linear WCS solution.
 3. Sort reference and source catalog by magnitude
 
 Iterate n times:
+
 4. transform reference catalog to pixel coordiantes (inverse TAN / CD matrix matrix applied)
 5. Transform source catalog to undistorted pixel coordiantes (in itereation 0, SIP is identity transformation)
 6. Match both catalogs by smalles distance, with configurable max allowable distance
