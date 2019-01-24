@@ -1,9 +1,10 @@
 import logging
 from astropy.io import fits
 from astropy.table import Table
-from astropy.wcs import WCS
+from astropy.wcs import WCS, Sip
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+import astropy
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -122,7 +123,7 @@ class CatalogMatcher:
 
         self.matchedCatalog['distarcsec'] = referenceSkyCoords.separation(sourceSkyCoords).arcsecond
 
-        result = np.sqrt (np.sum (self.matchedCatalog['distarcsec']**2)  / len( self.matchedCatalog['distarcsec']))
+        result = (np.sum(self.matchedCatalog['distarcsec']**3) )  / len( self.matchedCatalog['distarcsec'])
         #log.info ("WCS CRVAL % 12.9f % 12.9f , Source RA / Dec [0] %f %f  Merrit %f" % (self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], sourcera[0], sourcedec[0],  result))
 
         return result
@@ -132,6 +133,8 @@ class CatalogMatcher:
         '''
 
         sourcera, sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
+
+        deccor = math.cos (self.wcs.wcs.crval[1]*math.pi/180)
 
         #plt.subplot(projection=self.wcs)
         plt.plot(sourcera, sourcedec, '.')
@@ -143,7 +146,7 @@ class CatalogMatcher:
 
         plt.clf()
         plt.subplot (4,1,1)
-        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], (self.matchedCatalog['RA'] - sourcera)*3600., '.')
+        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], (self.matchedCatalog['RA'] - sourcera)*3600. / deccor, '.')
         plt.xlabel("X [pixels]")
         plt.ylabel("residual RA [\'\']")
         plt.ylim([-0.75,0.75])
@@ -157,7 +160,7 @@ class CatalogMatcher:
 
 
         plt.subplot (4,1,3)
-        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], (self.matchedCatalog['RA'] - sourcera)*3600., '.')
+        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], (self.matchedCatalog['RA'] - sourcera)*3600. / deccor, '.')
         plt.xlabel("Y [pixels]")
         plt.ylabel("residual ra [\'\']")
         plt.ylim([-0.75,0.75])
@@ -195,7 +198,7 @@ class SIPOptimizer:
         crval = self.matchedCatalog.wcs.wcs.crval
         cd = self.matchedCatalog.wcs.wcs.cd
 
-        self.wcsfitparams = [crval[0] , crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1]]
+        self.wcsfitparams = [crval[0] , crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1], 0,0,0,0,0,0]
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
         log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
 
@@ -209,6 +212,23 @@ class SIPOptimizer:
         matchedCatalog.wcs.wcs.cd[0][1] = sipcoefficients[3]
         matchedCatalog.wcs.wcs.cd[1][0] = sipcoefficients[4]
         matchedCatalog.wcs.wcs.cd[1][1] = sipcoefficients[5]
+
+        m = 2
+        sip_a = np.zeros((m + 1, m + 1), np.double)
+        sip_b = np.zeros((m + 1, m + 1), np.double)
+
+        sip_a[1][1]=sipcoefficients[6]
+        sip_a[2][0]=sipcoefficients[7]
+        sip_a[0][2]=sipcoefficients[8]
+
+        sip_b[1][1]=sipcoefficients[9]
+        sip_b[2][0]=sipcoefficients[10]
+        sip_b[0][2]=sipcoefficients[11]
+
+        sip = Sip (sip_a,sip_b,
+                   None, None,  matchedCatalog.wcs.wcs.crval)
+        matchedCatalog.wcs.sip = sip
+
         matchedCatalog.wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         merrit = matchedCatalog.updateWCSandUpdateRMS(matchedCatalog.wcs)
         #log.debug("% 12.9f % 12.9f f % 12.7f" % (sipcoefficients[0], sipcoefficients[1], merrit))
@@ -216,18 +236,21 @@ class SIPOptimizer:
 
     def improveSIP(self):
 
-        bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog),
-                                     )
+        bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
         log.info("Optimizer return        %s" % bestfit)
 
         #
 
 
 if __name__ == '__main__':
-    refcat = refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
-    #refcat = gaiaonline()
+    #refcat = refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
+    refcat = gaiaonline()
+    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
+    #     '/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
+    #     refcat, 1)
+
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-        '/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
+        '/archive/engineering/lsc/kb95/20190114/processed/lsc0m409-kb95-20190114-0100-e91.fits.fz',
         refcat, 1)
 
     opt = SIPOptimizer(matchedCatalog, 10)
@@ -235,9 +258,11 @@ if __name__ == '__main__':
     opt.improveSIP()
 
 
-    matchedCatalog.matchCatalogs(matchradius=0.3)
+    matchedCatalog.matchCatalogs(matchradius=0.5)
     opt = SIPOptimizer(matchedCatalog, 10)
     opt.improveSIP()
     matchedCatalog.diagnosticPlots('test_postiteration1')
+    log.info (matchedCatalog.wcs)
+
 
 
