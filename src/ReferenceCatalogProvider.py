@@ -26,12 +26,13 @@ class gaiaonline (ReferenceCatalogProvider):
 
     def get_reference_catalog(self, ra, dec, radius):
 
-        coord = SkyCoord(ra=280, dec=-60, unit=(u.degree, u.degree), frame='icrs')
+        coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
         radius = u.Quantity(radius, u.deg)
         j = Gaia.cone_search_async(coord, radius)
         r = j.get_results()
 
-        retTable = Table ([r['ra'], r['dec']], names=["RA",'Dec'])
+        retTable = Table ([r['ra'] / u.degree, r['dec'] / u.degree], names=["RA",'Dec'])
+        log.debug ("Gaia reference catalog has %d items" % len (retTable))
         return retTable
 
 class refcat2 (ReferenceCatalogProvider):

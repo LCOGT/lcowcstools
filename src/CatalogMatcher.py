@@ -9,6 +9,8 @@ import math
 import matplotlib.pyplot as plt
 
 from src.ReferenceCatalogProvider import refcat2
+from src.ReferenceCatalogProvider import gaiaonline
+
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=getattr(logging, 'DEBUG'),
@@ -35,7 +37,7 @@ class CatalogMatcher:
         e91image = fits.open(imagepath)
         ra = e91image['SCI'].header['CRVAL1']
         dec = e91image['SCI'].header['CRVAL2']
-
+        log.info ("Image is at RA / Dec %f %f " % (ra,dec))
         try:
             sourceCatalog = e91image['CAT'].data
             log.debug ("Source Catalog has %d entries" % len(sourceCatalog))
@@ -95,6 +97,7 @@ class CatalogMatcher:
             )
 
             self.matchedCatalog = retCatalog
+            log.debug ("Catalog matched %d entries" % len(retCatalog))
 
         except:
             log.exception("Error while transforming and matching")
@@ -175,8 +178,10 @@ class SIPOptimizer:
 
 
 if __name__ == '__main__':
+    refcat =  refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
+    #refcat = gaiaonline()
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91('/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
-                                                 refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db'), 3)
+                                                refcat , 3)
 
     log.info ("Residual error of matched catalog: % 7.3f" % matchedCatalog.getUpdatedRMS())
     matchedCatalog.diagnosticPlots('test')
