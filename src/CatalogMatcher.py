@@ -9,7 +9,6 @@ import sqlite3
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-import scipy.minimize
 
 
 
@@ -105,9 +104,20 @@ class CatalogMatcher:
         return retCatalog
 
 
-    def getrms (self):
-        distsquare =  self.matchedCatalog['distarcsec']**2
-        return np.sqrt ( np.sum ( distsquare) )
+
+    def getUpdatedRMS (self, usewcs = None):
+        ''' transform the pixel list with a new wcs and get the distance based merrit function of that sollution.
+        Note that when this is called, there should be already a matched  catalog avaiable. '''
+
+        if usewcs is None:
+            usewcs = self.wcs
+        sourcera,sourcedec = usewcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
+
+        sourceSkyCoords = SkyCoord (ra =  sourcera * u.degree, dec = sourcedec * u.degree)
+        referenceSkyCoords = SkyCoord (ra=self.matchedCatalog['RA'] * u.degree, dec = self.matchedCatalog['Dec'] * u.degree)
+        distance = referenceSkyCoords.separation(sourceSkyCoords).arcsecond
+
+        return  math.sqrt ( np.sum (distance**2) / len(distance) )
 
 
 
@@ -252,8 +262,9 @@ if __name__ == '__main__':
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91('/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
                                                  '/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db', 3)
 
-    log.info ("Residual error of matched catalog: % 7.3f" % matchedCatalog.getrms())
+    log.info ("Residual error of matched catalog: % 7.3f" % matchedCatalog.getUpdatedRMS())
     matchedCatalog.diagnosticPlots('test')
 
-    opt = SIPOptimizer (matchedCatalog,10)
+
+    #opt = SIPOptimizer (matchedCatalog,10)
     #opt.improveSIP()
