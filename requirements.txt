@@ -1,0 +1,5 @@
+matplotlib
+astropy
+scipy
+numpy
+sqlalchemy
