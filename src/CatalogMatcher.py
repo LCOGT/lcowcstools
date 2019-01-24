@@ -142,17 +142,35 @@ class CatalogMatcher:
         plt.close()
 
         plt.clf()
-        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], self.matchedCatalog['distarcsec'], '.')
+        plt.subplot (4,1,1)
+        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], (self.matchedCatalog['RA'] - sourcera)*3600., '.')
         plt.xlabel("X [pixels]")
-        plt.ylabel("Distance [\'\']")
-        plt.savefig("%s_RAdist.png" % basename)
-        plt.close()
+        plt.ylabel("residual RA [\'\']")
+        plt.ylim([-0.75,0.75])
 
-        plt.clf()
-        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], self.matchedCatalog['distarcsec'], '.')
+
+        plt.subplot (4,1,2)
+        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], (self.matchedCatalog['Dec'] - sourcedec)*3600., '.')
+        plt.xlabel("X [pixels]")
+        plt.ylabel("resiudal Dec [\'\']")
+        plt.ylim([-0.75,0.75])
+
+
+        plt.subplot (4,1,3)
+        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], (self.matchedCatalog['RA'] - sourcera)*3600., '.')
         plt.xlabel("Y [pixels]")
-        plt.ylabel("Distance [\'\']")
-        plt.savefig("%s_Decdist.png" % basename)
+        plt.ylabel("residual ra [\'\']")
+        plt.ylim([-0.75,0.75])
+
+
+        plt.subplot (4,1,4)
+        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], (self.matchedCatalog['Dec'] - sourcedec)*3600., '.')
+        plt.xlabel("Y [pixels]")
+        plt.ylabel("residual dec [\'\']")
+        plt.ylim([-0.75,0.75])
+
+
+        plt.savefig("%s_residuals.png" % basename, dpi=200)
         plt.close()
         # plt.clf()
         # plt.plot(np.sqrt((self.matchedCatalog['y'] - self.wcs.wcs.crpix[1]) ** 2 + (
@@ -217,7 +235,7 @@ if __name__ == '__main__':
     opt.improveSIP()
 
 
-    matchedCatalog.matchCatalogs(matchradius=0.5)
+    matchedCatalog.matchCatalogs(matchradius=0.3)
     opt = SIPOptimizer(matchedCatalog, 10)
     opt.improveSIP()
     matchedCatalog.diagnosticPlots('test_postiteration1')
