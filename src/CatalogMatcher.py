@@ -9,6 +9,7 @@ import sqlite3
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import scipy.minimize
 
 
 
@@ -28,12 +29,11 @@ class CatalogMatcher:
         the reference catalog shall be a astropy Table with the columns 'RA', 'Dec'
 
     '''
-    source = None
-    reference = None
-    matchedCatalog = None
 
     @staticmethod
     def createMatchedCatalogForLCOe91 (imagepath, refcat2db, matchradius=5):
+        ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
+         a matchedcatalog object.'''
 
         e91image = fits.open(imagepath)
         ra = e91image['SCI'].header['CRVAL1']
@@ -45,11 +45,12 @@ class CatalogMatcher:
 
         except:
             log.warning("%s - No extension \'CAT\' available, skipping." % (e91image))
-            e91image
+            e91image.close()
             return None
         # instanciate the initial guess WCS from the image header
 
         image_wcs = WCS (e91image['SCI'].header)
+        e91image.close()
 
         # fetch a reference catalog:
         referenceCatalogProvider = refcat2(refcat2db)
@@ -60,29 +61,38 @@ class CatalogMatcher:
         return matchedCatalog
 
 
-    def matchCatalogs (self, source, reference, wcs, matchradius = 5):
+    def matchCatalogs (self, source=None, reference=None, wcs=None, matchradius = 5):
+        ''' match input catalogs.
+        If no new catalogs are given, the match will be done on the chached catalogs of the class.
+        '''
 
         retCatalog = None
-        self.wcs = wcs
-        if WCS is None:
-            pass
+
+        # Cache management
+        if wcs is not None:
+            self.wcs = wcs
+
+        if source is not None:
+            self.source = source
+
+        if reference is not None:
+            self.reference = reference
 
         # transform source catalog to RADEC
         try:
-
-            sourcera,sourcedec = wcs.all_pix2world(source['x'], source['y'], 1)
+            sourcera,sourcedec = self.wcs.all_pix2world(self.source['x'], self.source['y'], 1)
             sourceSkyCoords = SkyCoord (ra =  sourcera * u.degree, dec = sourcedec * u.degree)
 
-            referenceSkyCoords = SkyCoord (ra=reference['RA'] * u.degree, dec = reference['Dec'] * u.degree)
+            referenceSkyCoords = SkyCoord (ra=self.reference['RA'] * u.degree, dec = self.reference['Dec'] * u.degree)
 
             idx, d2d,d3d = referenceSkyCoords.match_to_catalog_sky(sourceSkyCoords)
             distance = referenceSkyCoords.separation(sourceSkyCoords[idx]).arcsecond
 
             matchcondition = (distance < matchradius)
-            retCatalog = Table ( [source['x'][idx][matchcondition],
-                                  source['y'][idx][matchcondition],
-                                  reference['RA'][matchcondition],
-                                  reference['Dec'][matchcondition],
+            retCatalog = Table ( [self.source['x'][idx][matchcondition],
+                                  self.source['y'][idx][matchcondition],
+                                  self.reference['RA'][matchcondition],
+                                  self.reference['Dec'][matchcondition],
                                   distance[matchcondition]],
                                  names=['x','y','RA','Dec', 'distarcsec']
             )
@@ -95,7 +105,15 @@ class CatalogMatcher:
         return retCatalog
 
 
-    def diagnosticPlots (self, basename, wcs=None):
+    def getrms (self):
+        distsquare =  self.matchedCatalog['distarcsec']**2
+        return np.sqrt ( np.sum ( distsquare) )
+
+
+
+    def diagnosticPlots (self, basename):
+        ''' Generate some helpful diagnostics for the distortion.
+        '''
 
         sourcera,sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
 
@@ -110,18 +128,16 @@ class CatalogMatcher:
         plt.ylabel ("Distance [\'\']")
         plt.savefig ("%s_RAdist.png" % basename)
 
-
         plt.clf()
         plt.plot (self.matchedCatalog['y']-self.wcs.wcs.crpix[1], self.matchedCatalog['distarcsec'],'.')
         plt.xlabel ("Y [pixels]")
         plt.ylabel ("Distance [\'\']")
         plt.savefig ("%s_Decdist.png" % basename)
 
-
         plt.clf()
         plt.plot (np.sqrt ( (self.matchedCatalog['y']-self.wcs.wcs.crpix[1])**2 + (self.matchedCatalog['x']-self.wcs.wcs.crpix[0])**2) ,
               self.matchedCatalog['distarcsec'],'.')
-        plt.xlabel ("Y [pixels]")
+        plt.xlabel ("radius [pixels]")
         plt.ylabel ("Distance [\'\']")
         plt.savefig ("%s_radialdist.png" % basename)
 
@@ -210,8 +226,34 @@ class refcat2:
         log.debug("Reference Catalog has  %d entries" % len(table))
         return table
 
+
+
+class SIPOptimizer:
+
+    def __init__(self, MatchedCatalog, maxorder):
+        self.MatchedCatalog = MatchedCatalog
+        self.maxorder = maxorder
+
+
+    def merritFunction (self, matchedCatalog, sipcoefficients):
+
+        matchedCatalog.wcs.update (sipcoefficients)
+        matchedCatalog.matchCatalogs()
+        return matchedCatalog.gerrms()
+
+    def improveSIP (self):
+        initialGuess = np.zeros[maxorder]
+        scipy.optimize.minimize (self.merritFunction, initialGuess)
+
+
+
+
 if __name__ == '__main__':
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91('/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
                                                  '/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db', 3)
 
+    log.info ("Residual error of matched catalog: % 7.3f" % matchedCatalog.getrms())
     matchedCatalog.diagnosticPlots('test')
+
+    opt = SIPOptimizer (matchedCatalog,10)
+    #opt.improveSIP()
