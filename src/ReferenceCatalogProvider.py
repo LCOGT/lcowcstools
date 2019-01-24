@@ -6,6 +6,10 @@ from astropy.table import Table
 import logging
 import os.path
 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astroquery.gaia import Gaia
+
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=getattr(logging, 'DEBUG'),
@@ -18,7 +22,17 @@ class ReferenceCatalogProvider (metaclass=abc.ABCMeta):
     def get_reference_catalog(self, ra, dec, radius):
         pass
 
+class gaiaonline (ReferenceCatalogProvider):
 
+    def get_reference_catalog(self, ra, dec, radius):
+
+        coord = SkyCoord(ra=280, dec=-60, unit=(u.degree, u.degree), frame='icrs')
+        radius = u.Quantity(radius, u.deg)
+        j = Gaia.cone_search_async(coord, radius)
+        r = j.get_results()
+
+        retTable = Table ([r['ra'], r['dec']], names=["RA",'Dec'])
+        return retTable
 
 class refcat2 (ReferenceCatalogProvider):
     # Interface to query consolidat3ed sqlite3 db file that was geernated from Tonry (2018) refcat2
@@ -102,3 +116,8 @@ class refcat2 (ReferenceCatalogProvider):
         table = self.PStoSDSS(table)
         log.debug("Reference Catalog has  %d entries" % len(table))
         return table
+
+
+if __name__ == '__main__':
+    gaia = gaiaonline()
+    print (gaia.get_reference_catalog(10,10,0.2))
