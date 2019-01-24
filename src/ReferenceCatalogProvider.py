@@ -120,5 +120,6 @@ class refcat2 (ReferenceCatalogProvider):
 
 
 if __name__ == '__main__':
-    gaia = gaiaonline()
-    print (gaia.get_reference_catalog(10,10,0.2))
+    pass
+    # gaia = gaiaonline()
+    # print (gaia.get_reference_catalog(10,10,0.2))
