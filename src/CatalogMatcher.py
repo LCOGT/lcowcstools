@@ -14,6 +14,7 @@ from random import random
 from src.ReferenceCatalogProvider import refcat2, gaiaonline
 
 #from src.ReferenceCatalogProvider import gaiaonline
+from src.SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=getattr(logging, 'DEBUG'),
@@ -37,29 +38,23 @@ class CatalogMatcher:
         ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
          a matchedcatalog object.'''
 
-        e91image = fits.open(imagepath)
-        ra = e91image['SCI'].header['CRVAL1']
-        dec = e91image['SCI'].header['CRVAL2']
-        log.debug("Image is at RA / Dec %f %f " % (ra, dec))
-        try:
-            sourceCatalog = e91image['CAT'].data
-            log.debug("Source Catalog has %d entries" % len(sourceCatalog))
+        if ('e91.fits' in imagepath):
+            sourceCatalogProvider = e91SourceCatalogProvider()
+        else:
+            sourceCatalogProvider = blindGaiaAstrometrySourceCatalogProvider()
 
-        except:
-            log.warning("%s - No extension \'CAT\' available, skipping." % (e91image))
-            e91image.close()
-            return None
-        # instanciate the initial guess WCS from the image header
-
-        image_wcs = WCS(e91image['SCI'].header)
-        e91image.close()
-
+        sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
+        ra = image_wcs.wcs.crval[0]
+        dec = image_wcs.wcs.crval[1]
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
 
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)
         return matchedCatalog
+
+
+
 
     def matchCatalogs(self, source=None, reference=None, wcs=None, matchradius=5):
         ''' match input catalogs.
@@ -123,7 +118,7 @@ class CatalogMatcher:
 
         self.matchedCatalog['distarcsec'] = referenceSkyCoords.separation(sourceSkyCoords).arcsecond
 
-        result = (np.sum(self.matchedCatalog['distarcsec']**3) )  / len( self.matchedCatalog['distarcsec'])
+        result = math.sqrt(np.sum(self.matchedCatalog['distarcsec']**2)   / len( self.matchedCatalog['distarcsec']))
         #log.info ("WCS CRVAL % 12.9f % 12.9f , Source RA / Dec [0] %f %f  Merrit %f" % (self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], sourcera[0], sourcedec[0],  result))
 
         return result
@@ -186,7 +181,7 @@ class CatalogMatcher:
 
 class SIPOptimizer:
 
-    def __init__(self, newMatchedCatalog, maxorder):
+    def __init__(self, newMatchedCatalog, maxorder=2):
         self.matchedCatalog = newMatchedCatalog
         if self.matchedCatalog.wcs is None:
             log.error("Cannot proceed without a wcs in matched catalog. aborting.")
@@ -198,7 +193,11 @@ class SIPOptimizer:
         crval = self.matchedCatalog.wcs.wcs.crval
         cd = self.matchedCatalog.wcs.wcs.cd
 
+
         self.wcsfitparams = [crval[0] , crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1], 0,0,0,0,0,0]
+        if maxorder >2:
+            self.wcsfitparams.extend ([0,0,0,0])
+
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
         log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
 
@@ -213,7 +212,7 @@ class SIPOptimizer:
         matchedCatalog.wcs.wcs.cd[1][0] = sipcoefficients[4]
         matchedCatalog.wcs.wcs.cd[1][1] = sipcoefficients[5]
 
-        m = 2
+        m = 3
         sip_a = np.zeros((m + 1, m + 1), np.double)
         sip_b = np.zeros((m + 1, m + 1), np.double)
 
@@ -224,6 +223,13 @@ class SIPOptimizer:
         sip_b[1][1]=sipcoefficients[9]
         sip_b[2][0]=sipcoefficients[10]
         sip_b[0][2]=sipcoefficients[11]
+
+        if len (sipcoefficients) > 12:
+            sip_a[3][0] =  sipcoefficients[12]
+            sip_a[0][3] =  sipcoefficients[13]
+            sip_b[3][0] =  sipcoefficients[14]
+            sip_b[0][3] =  sipcoefficients[15]
+
 
         sip = Sip (sip_a,sip_b,
                    None, None,  matchedCatalog.wcs.wcs.crval)
@@ -239,27 +245,32 @@ class SIPOptimizer:
         bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
         log.info("Optimizer return        %s" % bestfit)
 
-        #
-
 
 if __name__ == '__main__':
-    #refcat = refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
-    refcat = gaiaonline()
-    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-    #     '/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
-    #     refcat, 1)
+    refcat = refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
+    #refcat = gaiaonline()
 
+    # Sinsitro
+    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
+    #      '/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
+    #      refcat, 1)
+
+    # TLV AGU
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-        '/archive/engineering/lsc/kb95/20190114/processed/lsc0m409-kb95-20190114-0100-e91.fits.fz',
+        '/archive/engineering/tlv/ak10/20190124/raw/tlv1m0XX-ak10-20190124-0012-e00.fits.fz',
         refcat, 1)
 
-    opt = SIPOptimizer(matchedCatalog, 10)
+    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
+    #     '/archive/engineering/lsc/kb95/20190114/processed/lsc0m409-kb95-20190114-0100-e91.fits.fz',
+    #     refcat, 1)
+
+    opt = SIPOptimizer(matchedCatalog)
     matchedCatalog.diagnosticPlots('test_prefit')
     opt.improveSIP()
 
 
     matchedCatalog.matchCatalogs(matchradius=0.5)
-    opt = SIPOptimizer(matchedCatalog, 10)
+    opt = SIPOptimizer(matchedCatalog, maxorder=2)
     opt.improveSIP()
     matchedCatalog.diagnosticPlots('test_postiteration1')
     log.info (matchedCatalog.wcs)
