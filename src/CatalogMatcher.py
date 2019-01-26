@@ -273,21 +273,16 @@ if __name__ == '__main__':
     #     '/archive/engineering/lsc/kb95/20190114/processed/lsc0m409-kb95-20190114-0100-e91.fits.fz',
     #     refcat, 1)
 
-    opt = SIPOptimizer(matchedCatalog)
+    opt = SIPOptimizer(matchedCatalog, maxorder=2)
     matchedCatalog.diagnosticPlots('test_prefit')
     opt.improveSIP()
 
-    matchedCatalog.matchCatalogs(matchradius=10)
-    opt = SIPOptimizer(matchedCatalog, maxorder=2)
-    opt.improveSIP()
+    searchradii = [10, 2,1.5,1]
+    for searchradius in searchradii:
+        matchedCatalog.matchCatalogs(matchradius=searchradius)
+        opt = SIPOptimizer(matchedCatalog, maxorder=2)
+        opt.improveSIP()
 
-    matchedCatalog.matchCatalogs(matchradius=2)
-    opt = SIPOptimizer(matchedCatalog, maxorder=2)
-    opt.improveSIP()
-
-    matchedCatalog.matchCatalogs(matchradius=1)
-    opt = SIPOptimizer(matchedCatalog, maxorder=2)
-    opt.improveSIP()
 
     matchedCatalog.diagnosticPlots('test_postiteration1')
     log.info(matchedCatalog.wcs)

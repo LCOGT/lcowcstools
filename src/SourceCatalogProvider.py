@@ -98,10 +98,19 @@ class blindGaiaAstrometrySourceCatalogProvider(SourceCatalogProvider):
         image_data = image_data.astype(float)
 
         backGround = sep.Background(image_data)
-        log.info("Background: %f \pm %f " % (backGround.globalback, backGround.globalrms))
-        objects = sep.extract(image_data - backGround, 10, backGround.globalrms)
+        image_data = image_data - backGround
+        log.debug("Background: %f \pm %f " % (backGround.globalback, backGround.globalrms))
 
-        retTable = Table([objects['x'], objects['y']], names=['x', 'y'])
+        objects = sep.extract(image_data, 10, backGround.globalrms)
+        flux_radii, flag = sep.flux_radius(image_data, objects['x'], objects['y'],
+                                           6.0 * objects['a'], [0.25, 0.5, 0.75],
+                                           normflux=objects['flux'], subpix=5)
+
+
+        sig = 2.0 / 2.35 * flux_radii[:, 1]
+        xwin, ywin, flag = sep.winpos(image_data, objects['x'], objects['y'], sig)
+
+        retTable = Table([xwin,ywin], names=['x', 'y'])
         return retTable, image_wcs
 
 
