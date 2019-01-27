@@ -22,7 +22,7 @@ logging.basicConfig(level=getattr(logging, 'DEBUG'),
 
 
 class CatalogMatcher:
-    '''
+    """
         Class to match two input catalogs:
         sourcecatalog is a catalog of sources extracted from an image, in coordinates of pixels (x,y)
         referencecatalog is a catalog of on-sky objects based on existing surveys, in coordinates of (RA, Dec)
@@ -31,32 +31,36 @@ class CatalogMatcher:
         the source catalog shall be a astropy Table with the columns 'x', 'y'
         the reference catalog shall be a astropy Table with the columns 'RA', 'Dec'
 
-    '''
+    """
 
     @staticmethod
     def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5):
-        ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
-         a matchedcatalog object.'''
+        """ Factory method to automatically load source catalog from an LCO e91 processed file, fetch a reference
+           catalog, and return a matchedcatalog object."""
 
+        # Find the best way to get the source catalog based on input image.
         if ('e91.fits' in imagepath):
             sourceCatalogProvider = e91SourceCatalogProvider()
         else:
             sourceCatalogProvider = blindGaiaAstrometrySourceCatalogProvider()
 
         sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
+
+        # fetch a reference catalog:
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
-        # fetch a reference catalog:
+        # TODO: dynamically adjust the query radius
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
 
+        # Match the two catalogs and return the result.
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)
         return matchedCatalog
 
     def matchCatalogs(self, source=None, reference=None, wcs=None, matchradius=5):
-        ''' match input catalogs.
+        """ match input catalogs.
         If no new catalogs are given, the match will be done on the chached catalogs of the class.
-        '''
+        """
 
         retCatalog = None
 
@@ -74,7 +78,6 @@ class CatalogMatcher:
         try:
             sourcera, sourcedec = self.wcs.all_pix2world(self.source['x'], self.source['y'], 1)
             sourceSkyCoords = SkyCoord(ra=sourcera * u.degree, dec=sourcedec * u.degree)
-
             referenceSkyCoords = SkyCoord(ra=self.reference['RA'] * u.degree, dec=self.reference['Dec'] * u.degree)
 
             idx, d2d, d3d = referenceSkyCoords.match_to_catalog_sky(sourceSkyCoords)
@@ -85,7 +88,8 @@ class CatalogMatcher:
                                          self.source['y'][idx][matchcondition],
                                          self.reference['RA'][matchcondition],
                                          self.reference['Dec'][matchcondition],
-                                         distance[matchcondition]],
+                                         distance[matchcondition]
+                                         ],
                                         names=['x', 'y', 'RA', 'Dec', 'distarcsec']
                                         )
 
@@ -97,25 +101,20 @@ class CatalogMatcher:
         return self.matchedCatalog
 
     def updateWCSandUpdateRMS(self, usewcs=None):
-        ''' transform the pixel list with a new wcs and get the distance based merrit function of that sollution.
-        Note that when this is called, there should be already a matched  catalog avaiable. '''
+        """ Transform the pixel list with a new wcs and get the distance based merit function of that solution.
+        Note that when this is called, there should be already a matched  catalog available. """
 
         if usewcs is not None:
             self.wcs = usewcs
-            # log.debug ("WCS updated for MatchedCatalog")
-        else:
-            pass
-            # log.info ("WCS not updated")
 
         sourcera, sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
-
         sourceSkyCoords = SkyCoord(ra=sourcera * u.degree, dec=sourcedec * u.degree)
         referenceSkyCoords = SkyCoord(ra=self.matchedCatalog['RA'] * u.degree,
                                       dec=self.matchedCatalog['Dec'] * u.degree)
 
         self.matchedCatalog['distarcsec'] = referenceSkyCoords.separation(sourceSkyCoords).arcsecond
-
         result = math.sqrt(np.sum(self.matchedCatalog['distarcsec'] ** 2) / len(self.matchedCatalog['distarcsec']))
+
         # log.info ("WCS CRVAL % 12.9f % 12.9f , Source RA / Dec [0] %f %f  Merrit %f" % (self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], sourcera[0], sourcedec[0],  result))
 
         return result
@@ -125,8 +124,7 @@ class CatalogMatcher:
         '''
 
         sourcera, sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
-
-        deccor = math.cos(self.wcs.wcs.crval[1] * math.pi / 180)
+        DECcorrection = math.cos(self.wcs.wcs.crval[1] * math.pi / 180)
 
         plt.subplot(projection=self.wcs)
         plt.plot(sourcera, sourcedec, '.')
@@ -139,7 +137,7 @@ class CatalogMatcher:
         plt.clf()
         plt.subplot(4, 1, 1)
         plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
+                 (self.matchedCatalog['RA'] - sourcera) * 3600. / DECcorrection, '.')
         plt.xlabel("X [pixels]")
         plt.ylabel("residual RA [\'\']")
         plt.ylim([-1.75, 1.75])
@@ -153,7 +151,7 @@ class CatalogMatcher:
 
         plt.subplot(4, 1, 3)
         plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
+                 (self.matchedCatalog['RA'] - sourcera) * 3600. / DECcorrection, '.')
         plt.xlabel("Y [pixels]")
         plt.ylabel("residual ra [\'\']")
         plt.ylim([-1.75, 1.75])
@@ -167,39 +165,44 @@ class CatalogMatcher:
 
         plt.savefig("%s_residuals.png" % basename, dpi=200)
         plt.close()
-        # plt.clf()
-        # plt.plot(np.sqrt((self.matchedCatalog['y'] - self.wcs.wcs.crpix[1]) ** 2 + (
-        #             self.matchedCatalog['x'] - self.wcs.wcs.crpix[0]) ** 2),
-        #          self.matchedCatalog['distarcsec'], '.')
-        # plt.xlabel("radius [pixels]")
-        # plt.ylabel("Distance [\'\']")
-        # plt.savefig("%s_radialdist.png" % basename)
 
 
 class SIPOptimizer:
+    """ Given a matched source / reference catalog, iteratively fit  SIP WCS """
 
     def __init__(self, newMatchedCatalog, maxorder=2):
+        """
+
+        :param newMatchedCatalog: A established match Catalog object
+        :param maxorder: ORder of corrections: 1 - linear only, 2 - up to quadratic. 3 is unstable.
+        """
+
         self.matchedCatalog = newMatchedCatalog
         if self.matchedCatalog.wcs is None:
-            log.error("Cannot proceed without a wcs in matched catalog. aborting.")
+            log.error("Cannot proceed without a wcs in the matched catalog. aborting.")
             return None
 
         # bootstrap the initial SIP wcs
         self.maxorder = maxorder
-        log.info(self.matchedCatalog.wcs.wcs.ctype)
+        log.debug("Input WCS type is %s " % self.matchedCatalog.wcs.wcs.ctype)
+
         crval = self.matchedCatalog.wcs.wcs.crval
         cd = self.matchedCatalog.wcs.wcs.cd
 
+        # Use the existing WCS as initial guess for the fitting routine.
+        # linear CD matrix only
         self.wcsfitparams = [crval[0], crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1]]
 
-        if maxorder > 1:
+        # quadratic SIP fits x^2,y^2,xy for x and y correction, 6 coefficients.
+        if maxorder >= 2:
             self.wcsfitparams.extend([0, 0, 0, 0, 0, 0])
 
-        if maxorder > 2:
-            self.wcsfitparams.extend([0, 0, 0, 0])
+        if maxorder >= 3:
+            self.wcsfitparams.extend([0, 0, 0, 0, 0, 0, 0, 0])
 
-        merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
-        log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
+        # Update the WCS and get the initial merit function value of the matched catalog. This is where we start.
+        merit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
+        log.info("SIPOptimizer init: merit function is %12.7f" % (merit))
 
     @staticmethod
     def merritFunction(sipcoefficients, matchedCatalog):
@@ -211,12 +214,12 @@ class SIPOptimizer:
         matchedCatalog.wcs.wcs.cd[1][0] = sipcoefficients[4]
         matchedCatalog.wcs.wcs.cd[1][1] = sipcoefficients[5]
 
-
         m = 3
         sip_a = np.zeros((m + 1, m + 1), np.double)
         sip_b = np.zeros((m + 1, m + 1), np.double)
 
         if len(sipcoefficients) > 6:
+            # apparently we are requesting 2nd order SIP correction
             sip_a[1][1] = sipcoefficients[6]
             sip_a[2][0] = sipcoefficients[7]
             sip_a[0][2] = sipcoefficients[8]
@@ -225,10 +228,15 @@ class SIPOptimizer:
             sip_b[0][2] = sipcoefficients[11]
 
         if len(sipcoefficients) > 12:
+            # apparently we are also requesting 3rd order SIP correction.
             sip_a[3][0] = sipcoefficients[12]
-            sip_a[0][3] = sipcoefficients[13]
-            sip_b[3][0] = sipcoefficients[14]
-            sip_b[0][3] = sipcoefficients[15]
+            sip_a[2][1] = sipcoefficients[13]
+            sip_a[1][2] = sipcoefficients[14]
+            sip_a[0][3] = sipcoefficients[15]
+            sip_b[3][0] = sipcoefficients[16]
+            sip_b[2][1] = sipcoefficients[17]
+            sip_b[1][2] = sipcoefficients[18]
+            sip_b[0][3] = sipcoefficients[19]
 
         sip = Sip(sip_a, sip_b,
                   None, None, matchedCatalog.wcs.wcs.crval)
@@ -245,12 +253,15 @@ class SIPOptimizer:
             0.001, 0.001,  # CRVAL
             1e-5, 1e-5, 1e-5, 1e-5,  # CD Matrix
             1e-8, 1e-8, 1e-8,  # SIP order 2 A
-            1e-8, 1e-8, 1e-8,  # SIP order 2
-            1e-10, 1e-10, 1e-10, 1e-10,  # SIP ORDER 3
+            1e-8, 1e-8, 1e-8,  # SIP order 2 B
+            1e-10, 1e-10, 1e-10, 1e-10,  # SIP ORDER 3 A
+            1e-10, 1e-10, 1e-10, 1e-10,  # SIP ORDER 3 B
         ]
 
         deltas = deltas[:len(self.wcsfitparams)]
         bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
+
+        # Get a final rsult with the fittet paramters's WCS, and update the matchedCatalog.
         SIPOptimizer.merritFunction(bestfit.x, self.matchedCatalog)
         log.info("Optimizer return        %s" % bestfit)
 
@@ -277,12 +288,11 @@ if __name__ == '__main__':
     matchedCatalog.diagnosticPlots('test_prefit')
     opt.improveSIP()
 
-    searchradii = [10, 2,1.5,1]
+    searchradii = [10, 2, 1.5, 1]
     for searchradius in searchradii:
         matchedCatalog.matchCatalogs(matchradius=searchradius)
         opt = SIPOptimizer(matchedCatalog, maxorder=2)
         opt.improveSIP()
-
 
     matchedCatalog.diagnosticPlots('test_postiteration1')
     log.info(matchedCatalog.wcs)
