@@ -5,39 +5,53 @@ import math
 from astropy.table import Table
 import logging
 import os.path
-
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
 
-
 log = logging.getLogger(__name__)
-logging.basicConfig(level=getattr(logging, 'DEBUG'),
-                    format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
 
 
-class ReferenceCatalogProvider (metaclass=abc.ABCMeta):
+class ReferenceCatalogProvider(metaclass=abc.ABCMeta):
+    """ Base class to provide a Reference on sky catalog with RA/Dec coordinates
+
+        The purpose is to provide an abstract interface to read a reference catalog.
+    """
 
     @abc.abstractmethod
-    def get_reference_catalog(self, ra, dec, radius):
+    def get_reference_catalog(self, ra, dec, radius) -> Table:
+        """
+
+        :param ra:
+        :param dec:
+        :param radius:
+        :return: astropy Table object that has at least the columns 'RA' and 'Dec'
+        """
         pass
 
-class gaiaonline (ReferenceCatalogProvider):
+
+class gaiaonline(ReferenceCatalogProvider):
+    ''' Read the GAIA catalog via astroquery
+
+        Requires a network connection for the online query.
+    '''
 
     def get_reference_catalog(self, ra, dec, radius):
-
         coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
         radius = u.Quantity(radius, u.deg)
         j = Gaia.cone_search_async(coord, radius)
         r = j.get_results()
-
-        retTable = Table ([r['ra'] / u.degree, r['dec'] / u.degree], names=["RA",'Dec'])
-        log.debug ("Gaia reference catalog has %d items" % len (retTable))
+        # astroquery already assigns units to the resulting columns, but we do not want that.
+        retTable = Table([r['ra'] / u.degree, r['dec'] / u.degree], names=["RA", 'Dec'])
+        log.debug("Gaia reference catalog has %d items" % len(retTable))
         return retTable
 
-class refcat2 (ReferenceCatalogProvider):
-    # Interface to query consolidat3ed sqlite3 db file that was geernated from Tonry (2018) refcat2
 
+class refcat2(ReferenceCatalogProvider):
+    """Interface to query consolidated  sqlite3 db file that was generated from Tonry (2018) refcat2.
+
+        Requires access to the offline database somewhere in the file system
+    """
 
     FILTERMAPPING = {}
     FILTERMAPPING['gp'] = {'refMag': 'g', 'colorTerm': 0.0, 'airmassTerm': 0.20, 'defaultZP': 0.0}
@@ -59,8 +73,12 @@ class refcat2 (ReferenceCatalogProvider):
     ps1colorterms['i'] = [+0.01170, -0.00400, +0.00066, -0.00058][::-1]
     ps1colorterms['z'] = [-0.01062, +0.07529, -0.03592, +0.00890][::-1]
 
-
     def __init__(self, dbfile):
+        """
+
+        :param dbfile: location of the consolidated refcat2 slite database
+        """
+
         if (dbfile is None) or (not os.path.isfile(dbfile)):
             log.error("Unable to find reference catalog: %s" % (str(dbfile)))
             self.dbfile = None
@@ -86,19 +104,17 @@ class refcat2 (ReferenceCatalogProvider):
 
         return table
 
-
-    def get_reference_catalog(self, ra, dec, radius, overwrite_select=False):
+    def get_reference_catalog(self, ra, dec, radius):
 
         rows = None
         try:
             connection = sqlite3.connect(self.dbfile)
             cursor = connection.cursor()
-            if (not radius == None and radius > 0):
+            if (not radius == None) and (radius > 0):
                 min_dec = dec - radius
                 max_dec = dec + radius
                 min_ra = ra - radius / math.cos(math.radians(dec))
                 max_ra = ra + radius / math.cos(math.radians(dec))
-
 
             sql_command = 'select sources.RA, sources.Dec, sources.g,sources.r,sources.i, sources.z from sources, positions ' \
                           'where positions.ramin >= {ramin} and positions.ramax <= {ramax} ' \
@@ -108,7 +124,7 @@ class refcat2 (ReferenceCatalogProvider):
             sql_command = sql_command.format(ramin=min_ra, ramax=max_ra, decmin=min_dec, decmax=max_dec)
             cursor.execute(sql_command)
             rows = np.asarray(cursor.fetchall())
-            table = Table (rows, names=['RA','Dec','g','r','i','z'])
+            table = Table(rows, names=['RA', 'Dec', 'g', 'r', 'i', 'z'])
             cursor.close()
         except:
             log.exception("While trying to read from database:")
