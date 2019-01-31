@@ -17,6 +17,7 @@ import argparse
 
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
+from wcsfitsdatabase import wcsfitdatabase
 
 log = logging.getLogger(__name__)
 
@@ -277,8 +278,8 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
 
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
-       log.warning ("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (len(matchedCatalog.matchedCatalog['x']), args.minmatched))
-
+        log.warning ("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (len(matchedCatalog.matchedCatalog['x']), args.minmatched))
+        return
     opt = SIPOptimizer(matchedCatalog, maxorder=2)
 
 
@@ -293,7 +294,17 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
+
+
+    if args.database:
+        wcsdb = wcsfitdatabase(args.database)
+        wcsdb.addmeasurement(pngbasename, None, None, None, None, None, wcsdb.wcstojson (matchedCatalog.wcs))
+
+        wcsdb.close()
+
     log.info(matchedCatalog.wcs)
+
+
 
 
 def parseCommandLine():
@@ -308,6 +319,7 @@ def parseCommandLine():
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
+    parser.add_argument('--database', default="wcsfits.sqlite")
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
