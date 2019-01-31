@@ -1,4 +1,6 @@
 import logging
+import os
+
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS, Sip
@@ -11,14 +13,12 @@ import matplotlib.pyplot as plt
 import scipy.optimize as optimize
 from random import random
 
-from src.ReferenceCatalogProvider import refcat2, gaiaonline
+import argparse
 
-# from src.ReferenceCatalogProvider import gaiaonline
-from src.SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
+from ReferenceCatalogProvider import refcat2, gaiaonline
+from SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=getattr(logging, 'DEBUG'),
-                    format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
 
 
 class CatalogMatcher:
@@ -211,7 +211,6 @@ class SIPOptimizer:
         matchedCatalog.wcs.wcs.cd[1][0] = sipcoefficients[4]
         matchedCatalog.wcs.wcs.cd[1][1] = sipcoefficients[5]
 
-
         m = 3
         sip_a = np.zeros((m + 1, m + 1), np.double)
         sip_b = np.zeros((m + 1, m + 1), np.double)
@@ -255,34 +254,70 @@ class SIPOptimizer:
         log.info("Optimizer return        %s" % bestfit)
 
 
-if __name__ == '__main__':
-    refcat = refcat2('/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db')
-    # refcat = gaiaonline()
 
-    # Sinsitro
-    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-    #      '/archive/engineering/lsc/fa15/20190122/processed/lsc1m005-fa15-20190122-0323-e91.fits.fz',
-    #      refcat, 1)
+def iterativelyFitWCSmany (images, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
+    if refcat is None:
+        refcat = refcat2(args.refcat2)
 
-    # TLV AGU
+    if len (images) > 0:
+        for image in images:
+            iterativelyFitWCSsingle(image, args, searchradii=searchradii, refcat=refcat)
+
+
+def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
+
+    if refcat is None:
+        refcat = refcat2(args.refcat2)
+
+    pngbasename = os.path.basename(image)
+
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-        '/archive/engineering/lsc/ak01/20190123/raw/lsc1m009-ak01-20190123-0257-e00.fits.fz',
-        refcat, 10)
+        image,
+        refcat, searchradii[0])
 
-    # matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
-    #     '/archive/engineering/lsc/kb95/20190114/processed/lsc0m409-kb95-20190114-0100-e91.fits.fz',
-    #     refcat, 1)
+
+    if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
+       log.warning ("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (len(matchedCatalog.matchedCatalog['x']), args.minmatched))
 
     opt = SIPOptimizer(matchedCatalog, maxorder=2)
-    matchedCatalog.diagnosticPlots('test_prefit')
+
+
+    if args.makepng:
+        matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
     opt.improveSIP()
 
-    searchradii = [10, 2,1.5,1]
-    for searchradius in searchradii:
+    for searchradius in searchradii[1:]:
         matchedCatalog.matchCatalogs(matchradius=searchradius)
         opt = SIPOptimizer(matchedCatalog, maxorder=2)
         opt.improveSIP()
 
-
-    matchedCatalog.diagnosticPlots('test_postiteration1')
+    if args.makepng:
+        matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
     log.info(matchedCatalog.wcs)
+
+
+def parseCommandLine():
+    parser = argparse.ArgumentParser(
+        description='LCO WCS Tool')
+
+    parser.add_argument('inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
+    parser.add_argument('--refcat2', type=str, default='/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db',
+                        help='Location of Atlas refcat2 catalog in slite forrmat')
+    parser.add_argument('--minmatched', type=int, default=50,
+                        help='Minimum number of matched stars to accept solution or even proceed to fit.')
+    parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
+    parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
+                        help='Set the debug level')
+    args = parser.parse_args()
+
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+                        format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
+    return args
+
+
+if __name__ == '__main__':
+    args = parseCommandLine()
+    print (args.inputfiles)
+
+
+    iterativelyFitWCSmany(args.inputfiles, args)
