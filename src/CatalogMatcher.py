@@ -271,6 +271,13 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         refcat = refcat2(args.refcat2)
 
     pngbasename = os.path.basename(image)
+    if args.database:
+        wcsdb = wcsfitdatabase(args.database)
+        if wcsdb.checkifalreadyused(pngbasename):
+            log.info ("File already measured. Not doing the wame work twice; skipping")
+            wcsdb.close()
+            return
+
 
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
         image,
@@ -281,7 +288,6 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         log.warning ("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
     opt = SIPOptimizer(matchedCatalog, maxorder=2)
-
 
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
@@ -295,11 +301,8 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
 
-
     if args.database:
-        wcsdb = wcsfitdatabase(args.database)
         wcsdb.addmeasurement(pngbasename, None, None, None, None, None, wcsdb.wcstojson (matchedCatalog.wcs))
-
         wcsdb.close()
 
     log.info(matchedCatalog.wcs)
@@ -314,7 +317,7 @@ def parseCommandLine():
     parser.add_argument('inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
     parser.add_argument('--refcat2', type=str, default='/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db',
                         help='Location of Atlas refcat2 catalog in slite forrmat')
-    parser.add_argument('--minmatched', type=int, default=50,
+    parser.add_argument('--minmatched', type=int, default=60,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
