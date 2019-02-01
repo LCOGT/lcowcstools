@@ -122,32 +122,30 @@ def diagnosticByCamera (cameraname, args):
     plt.close()
 
 
-    plt.subplot (2,2,1)
+    plt.subplot (221)
     plt.plot (allsolutions['azimuth'], cd11, '.' , label='CD1_1')
     plt.plot (allsolutions['azimuth'], cd22, '.' , label='CD2_2')
     plt.legend()
     plt.xlabel("Azimuth [deg]")
 
-    plt.subplot (2,2,2)
+    plt.subplot (222)
     plt.plot (allsolutions['azimuth'],  cd21, '.', label='CD1_2')
     plt.plot (allsolutions['azimuth'],  cd12, '.', label='CD2_1')
     plt.legend()
     plt.xlabel('Azimuth')
 
-    plt.subplot (2,2,3)
+    plt.subplot (223)
     plt.plot (allsolutions['altitude'], cd11, '.' , label='CD1_1')
     plt.plot (allsolutions['altitude'], cd22, '.' , label='CD2_2')
     plt.legend()
     plt.xlabel("Altitude [deg]")
 
-    plt.subplot (2,2,4)
+    plt.subplot (224)
     plt.plot (allsolutions['altitude'],  cd21, '.', label='CD1_2')
     plt.plot (allsolutions['altitude'],  cd12, '.', label='CD2_1')
     plt.legend()
     plt.xlabel('Altitude')
-
-
-
+    plt.tight_layout()
     plt.savefig("wcstrans_flexurecd_{}".format(cameraname))
     plt.close()
 
@@ -158,4 +156,6 @@ if __name__ == '__main__':
     args = parseCommandLine()
 
     diagnosticByCamera("ak10", args)
-    diagnosticByCamera("fa03", args)
+    diagnosticByCamera("ak01", args)
+
+

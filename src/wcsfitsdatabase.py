@@ -111,6 +111,8 @@ class wcsfitdatabase:
         t['dateobs'] = t['dateobs'].astype(str)
         t['dateobs'] = astt.Time(t['dateobs'], scale='utc', format=None).to_datetime()
         t['wcs'] = t['wcs'].astype(str)
+        t['altitude'] = t['altitude'].astype(float)
+        t['azimuth'] = t['azimuth'].astype(float)
         return t
 
 
