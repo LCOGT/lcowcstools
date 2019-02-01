@@ -6,6 +6,9 @@
 import sqlite3
 import logging
 import json
+from astropy.table import Table
+import numpy as np
+import astropy.time as astt
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +60,7 @@ class wcsfitdatabase:
         return False
 
     def getcameras(self):
-        query = "select distinct camera from noisegain"
+        query = "select distinct camera from wcsfit"
 
         cursor = self.conn.execute(query)
         retarray = []
@@ -71,7 +74,7 @@ class wcsfitdatabase:
         log.info("Distinct cameras: %s" % retarray)
         return retarray
 
-    def readmeasurements(self, camera=None, filters=None, levelratio=None):
+    def readmeasurements(self, camera=None, filters=None):
         """
 
         :param camera: name of the camera to read
@@ -80,19 +83,19 @@ class wcsfitdatabase:
         :return: astropy.table with query results. May be None if no results are returned.
         """
 
-        query = "select name,dateobs,camera,filter,extension,gain,readnoise,level,differencenoise,level1,level2 from noisegain " \
-                "where (camera like ?) __FILTER__ ORDER BY dateobs"
+        query = "select name,dateobs,camera,filter,wcsjson from wcsfit " \
+                "where (name like ?)"
 
-        queryargs = [camera if camera is not None else '%', ]
-
-        if filters is not None:
-            filtercondition = 'AND (filter in (%s))' % ','.join ('?' * len(filters) )
-            query = query.replace("__FILTER__",  filtercondition)
-            queryargs.extend (filters)
-        else:
-            query = query.replace ("__FILTER__", "")
-
-        log.debug("Read from database with query\n  %s\n  %s\n" % (query, queryargs))
+        queryargs = ['%{}%'.format (camera) if camera is not None else '%', ]
+        #
+        # if filters is not None:
+        #     filtercondition = 'AND (filter in (%s))' % ','.join ('?' * len(filters) )
+        #     query = query.replace("__FILTER__",  filtercondition)
+        #     queryargs.extend (filters)
+        # else:
+        #     query = query.replace ("__FILTER__", "")
+        #
+        # log.debug("Read from database with query\n  %s\n  %s\n" % (query, queryargs))
 
         cursor = self.conn.execute(query, queryargs)
 
@@ -102,20 +105,10 @@ class wcsfitdatabase:
             return None
 
         t = Table(allrows,
-                  names=['identifier', 'dateobs', 'camera', 'filter', 'extension', 'gain', 'readnoise', 'level',
-                         'diffnoise', 'level1', 'level2'])
+                  names=['identifier', 'dateobs', 'camera', 'filter', 'wcs'])
         t['dateobs'] = t['dateobs'].astype(str)
         t['dateobs'] = astt.Time(t['dateobs'], scale='utc', format=None).to_datetime()
-        t['gain'] = t['gain'].astype(float)
-        t['level'] = t['level'].astype(float)
-        t['diffnoise'] = t['diffnoise'].astype(float)
-        t['readnoise'] = t['readnoise'].astype(float)
-        t['level1'] = t['level1'].astype(float)
-        t['level2'] = t['level2'].astype(float)
-
-        if levelratio is not None:
-            t = t[abs((t['level1'] - t['level2']) / t['level']) < levelratio]
-
+        t['wcs'] = t['wcs'].astype(str)
         return t
 
 

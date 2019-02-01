@@ -79,8 +79,14 @@ class blindGaiaAstrometrySourceCatalogProvider(SourceCatalogProvider):
         # TODO: Define condition when we want to refine the WCS
         if not 0:
             payload = {'ra': ra, 'dec': dec, 'image_path': imagename}
-            response = requests.post(self.url, json=payload)
-            response = response.json()
+
+            try:
+                response = requests.post(self.url, json=payload)
+                response = response.json()
+            except:
+                log.error ("Error while executing astrometry.net service %s" % payload)
+                return None, None
+
             if 'CD1_1' in response:
                 # Build a WCS, reverse-transform the source list.
                 image_wcs = WCS(naxis=2)

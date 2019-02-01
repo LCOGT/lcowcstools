@@ -6,6 +6,7 @@ from astropy.table import Table
 from astropy.wcs import WCS, Sip
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.io import fits
 import astropy
 import numpy as np
 import math
@@ -45,13 +46,46 @@ class CatalogMatcher:
             sourceCatalogProvider = blindGaiaAstrometrySourceCatalogProvider()
 
         sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
+        if sourceCatalog is None:
+            return None
+
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
+
+        # TODO: get camera identifier, date obs, etc
+
+        hdu = fits.open (imagepath)
+        exptime=None
+        filter = None
+        camera = None
+        dateobs = None
+        if 'EXPTIME' in hdu[0].header:
+            exptime = hdu[0].header['EXPTIME']
+        if 'EXPTIME' in hdu[1].header:
+            exptime = hdu[1].header['EXPTIME']
+        if ('FILTER') in hdu[0].header:
+            filter = hdu[0].header['FILTER']
+        if ('FILTER') in hdu[1].header:
+            filter = hdu[1].header['FILTER']
+        if 'DATE-OBS' in hdu[0].header:
+            dateobs = hdu[0].header['DATE-OBS']
+        if 'DATE-OBS' in hdu[1].header:
+            dateobs = hdu[1].header['DATE-OBS']
+        if 'INSTRUME' in hdu[0].header:
+            camera = hdu[0].header['INSTRUME']
+        if 'INSTRUME' in hdu[1].header:
+            camera = hdu[1].header['INSTRUME']
+        hdu.close()
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
 
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)
+        matchedCatalog.exptime = exptime
+        matchedCatalog.filter = filter
+        matchedCatalog.dateobs = dateobs
+        matchedCatalog.camera = camera
+
         return matchedCatalog
 
     def matchCatalogs(self, source=None, reference=None, wcs=None, matchradius=5):
@@ -255,18 +289,16 @@ class SIPOptimizer:
         log.info("Optimizer return        %s" % bestfit)
 
 
-
-def iterativelyFitWCSmany (images, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
+def iterativelyFitWCSmany(images, args,  refcat=None):
     if refcat is None:
         refcat = refcat2(args.refcat2)
 
-    if len (images) > 0:
+    if len(images) > 0:
         for image in images:
-            iterativelyFitWCSsingle(image, args, searchradii=searchradii, refcat=refcat)
+            iterativelyFitWCSsingle(image, args, searchradii=args.searchradii, refcat=refcat)
 
 
 def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
-
     if refcat is None:
         refcat = refcat2(args.refcat2)
 
@@ -274,19 +306,23 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
     if args.database:
         wcsdb = wcsfitdatabase(args.database)
         if wcsdb.checkifalreadyused(pngbasename):
-            log.info ("File already measured. Not doing the wame work twice; skipping")
+            log.info("File already measured. Not doing the wame work twice; skipping")
             wcsdb.close()
             return
-
 
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
         image,
         refcat, searchradii[0])
 
+    if matchedCatalog is None:
+        log.info("returned emtpry cataslog, not continuing.")
+        return
 
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
-        log.warning ("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (len(matchedCatalog.matchedCatalog['x']), args.minmatched))
+        log.warning("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (
+        len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
+
     opt = SIPOptimizer(matchedCatalog, maxorder=2)
 
     if args.makepng:
@@ -301,11 +337,15 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
 
-    if args.database:
-        wcsdb.addmeasurement(pngbasename, None, None, None, None, None, wcsdb.wcstojson (matchedCatalog.wcs))
-        wcsdb.close()
+    if (len(matchedCatalog.matchedCatalog['x']) > args.minmatched):
+        if (args.database):
+            wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None, None, wcsdb.wcstojson(matchedCatalog.wcs))
+            log.info(matchedCatalog.wcs)
+    else:
+        log.warning("Not enough matched pairs ({}) left after fit iteration. Not adding to database".format (len(matchedCatalog.matchedCatalog['x']) ))
 
-    log.info(matchedCatalog.wcs)
+    if (args.database):
+        wcsdb.close()
 
 
 
@@ -314,14 +354,15 @@ def parseCommandLine():
     parser = argparse.ArgumentParser(
         description='LCO WCS Tool')
 
-    parser.add_argument('inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
+    parser.add_argument('--inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
     parser.add_argument('--refcat2', type=str, default='/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db',
                         help='Location of Atlas refcat2 catalog in slite forrmat')
-    parser.add_argument('--minmatched', type=int, default=60,
+    parser.add_argument('--minmatched', type=int, default=50,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
+    parser.add_argument('--searchradii', type=float, nargs='+', default=[10,10,2,1.5,1])
     parser.add_argument('--database', default="wcsfits.sqlite")
     args = parser.parse_args()
 
@@ -332,7 +373,6 @@ def parseCommandLine():
 
 if __name__ == '__main__':
     args = parseCommandLine()
-    print (args.inputfiles)
-
+    log.info("Processing %d input files" % len(args.inputfiles))
 
     iterativelyFitWCSmany(args.inputfiles, args)
