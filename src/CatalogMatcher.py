@@ -319,6 +319,8 @@ def iterativelyFitWCSmany(images, args,  refcat=None):
 
 
 def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
+
+    log.info ("Starting to process {}".format (image))
     if refcat is None:
         refcat = refcat2(args.refcat2)
 
