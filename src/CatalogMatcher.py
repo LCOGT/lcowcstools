@@ -36,7 +36,7 @@ class CatalogMatcher:
     '''
 
     @staticmethod
-    def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5):
+    def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5, minobjects=1e20):
         ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
          a matchedcatalog object.'''
 
@@ -49,6 +49,9 @@ class CatalogMatcher:
         if sourceCatalog is None:
             return None
 
+        if len(sourceCatalog['x']) < minobjects:
+            log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one.")
+            return None
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
 
@@ -59,6 +62,8 @@ class CatalogMatcher:
         filter = None
         camera = None
         dateobs = None
+        azimuth = None
+        altitude = None
         if 'EXPTIME' in hdu[0].header:
             exptime = hdu[0].header['EXPTIME']
         if 'EXPTIME' in hdu[1].header:
@@ -75,6 +80,15 @@ class CatalogMatcher:
             camera = hdu[0].header['INSTRUME']
         if 'INSTRUME' in hdu[1].header:
             camera = hdu[1].header['INSTRUME']
+        if 'AZIMUTH' in hdu[0].header:
+            azimuth = hdu[0].header['AZIMUTH']
+        if 'AZIMUTH' in hdu[1].header:
+            azimuth = hdu[1].header['AZIMUTH']
+        if 'ALTITUDE' in hdu[0].header:
+            altitude = hdu[0].header['ALTITUDE']
+        if 'ALTITUDE' in hdu[1].header:
+            altitude = hdu[1].header['ALTITUDE']
+
         hdu.close()
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
@@ -85,6 +99,10 @@ class CatalogMatcher:
         matchedCatalog.filter = filter
         matchedCatalog.dateobs = dateobs
         matchedCatalog.camera = camera
+        matchedCatalog.altitude = altitude
+        matchedCatalog.azimuth = azimuth
+        matchedCatalog.azimuth = azimuth
+
 
         return matchedCatalog
 
@@ -128,7 +146,7 @@ class CatalogMatcher:
 
         except:
             log.exception("Error while transforming and matching")
-
+        log.info ("MatchCatalogs found % 10i pairs at search radius % 6.3f" % (len(self.matchedCatalog['x']), matchradius))
         return self.matchedCatalog
 
     def updateWCSandUpdateRMS(self, usewcs=None):
@@ -168,11 +186,14 @@ class CatalogMatcher:
         plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.')
         plt.xlabel("RA")
         plt.ylabel("DEC")
+        plt.title (basename)
         plt.savefig("%s_RADEC.png" % basename)
         plt.close()
 
         plt.clf()
         plt.subplot(4, 1, 1)
+        plt.title (basename)
+
         plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
                  (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
         plt.xlabel("X [pixels]")
@@ -199,7 +220,6 @@ class CatalogMatcher:
         plt.xlabel("Y [pixels]")
         plt.ylabel("residual dec [\'\']")
         plt.ylim([-1.75, 1.75])
-
         plt.savefig("%s_residuals.png" % basename, dpi=200)
         plt.close()
         # plt.clf()
@@ -221,7 +241,6 @@ class SIPOptimizer:
 
         # bootstrap the initial SIP wcs
         self.maxorder = maxorder
-        log.info(self.matchedCatalog.wcs.wcs.ctype)
         crval = self.matchedCatalog.wcs.wcs.crval
         cd = self.matchedCatalog.wcs.wcs.cd
 
@@ -234,7 +253,7 @@ class SIPOptimizer:
             self.wcsfitparams.extend([0, 0, 0, 0])
 
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
-        log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
+        #log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
 
     @staticmethod
     def merritFunction(sipcoefficients, matchedCatalog):
@@ -269,6 +288,7 @@ class SIPOptimizer:
         matchedCatalog.wcs.sip = sip
 
         matchedCatalog.wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+        matchedCatalog.wcs.wcs.set()
         merrit = matchedCatalog.updateWCSandUpdateRMS(matchedCatalog.wcs)
         # log.debug("% 12.9f % 12.9f f % 12.7f" % (sipcoefficients[0], sipcoefficients[1], merrit))
         return merrit
@@ -285,8 +305,8 @@ class SIPOptimizer:
 
         deltas = deltas[:len(self.wcsfitparams)]
         bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
-        SIPOptimizer.merritFunction(bestfit.x, self.matchedCatalog)
-        log.info("Optimizer return        %s" % bestfit)
+        merrit = SIPOptimizer.merritFunction(bestfit.x, self.matchedCatalog)
+        log.debug("Optimizer return        % 10.4f" % merrit)
 
 
 def iterativelyFitWCSmany(images, args,  refcat=None):
@@ -312,10 +332,10 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
         image,
-        refcat, searchradii[0])
+        refcat, searchradii[0], minobjects=args.minmatched)
 
     if matchedCatalog is None:
-        log.info("returned emtpry cataslog, not continuing.")
+        log.info("returned emtpry catalog, not continuing.")
         return
 
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
@@ -337,12 +357,10 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
 
-    if (len(matchedCatalog.matchedCatalog['x']) > args.minmatched):
-        if (args.database):
-            wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None, None, wcsdb.wcstojson(matchedCatalog.wcs))
-            log.info(matchedCatalog.wcs)
-    else:
-        log.warning("Not enough matched pairs ({}) left after fit iteration. Not adding to database".format (len(matchedCatalog.matchedCatalog['x']) ))
+    if (args.database):
+        wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None, None, matchedCatalog.azimuth, matchedCatalog.altitude,
+                              wcsdb.wcstojson(matchedCatalog.wcs))
+        log.info(matchedCatalog.wcs)
 
     if (args.database):
         wcsdb.close()
@@ -362,7 +380,7 @@ def parseCommandLine():
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
-    parser.add_argument('--searchradii', type=float, nargs='+', default=[10,10,2,1.5,1])
+    parser.add_argument('--searchradii', type=float, nargs='+', default=[10,10,5,3,2])
     parser.add_argument('--database', default="wcsfits.sqlite")
     args = parser.parse_args()
 

@@ -60,9 +60,9 @@ def diagnosticByCamera (cameraname, args):
     sip_b11 = []
     sip_b02 = []
 
-    allfilters = set (allsolutions['filter'])
+    filterset = set (allsolutions['filter'])
     dateobs = allsolutions['dateobs']
-    log.info ("Set of individual filters: {}".format (allfilters))
+    log.info ("Set of individual filters: {}".format (filterset))
 
     # sort out the json content
     for wcs in allsolutions['wcs']:
@@ -78,42 +78,80 @@ def diagnosticByCamera (cameraname, args):
         sip_b11.append (wcs['sipb11'])
         sip_b02.append (wcs['sipb02'])
     cd11 = np.asarray (cd11)
+    cd12 = np.asarray (cd12)
+    cd21 = np.asarray (cd21)
+    cd22 = np.asarray (cd22)
+    sip_a20 = np.asarray (sip_a20)
+    sip_a11 = np.asarray (sip_a11)
+    sip_a02 = np.asarray (sip_a02)
+    sip_b20 = np.asarray (sip_b20)
+    sip_b11 = np.asarray (sip_b11)
+    sip_b02 = np.asarray (sip_b02)
+
+    plt.plot (dateobs, cd11, 'o', label="CD11_{}".format (filter))
+    plt.plot (dateobs, cd22, 'o', label="CD22_{}".format (filter))
+    plt.legend()
+    dateformat()
+    plt.savefig ("wcstrend_cddiag_{}.png".format(cameraname))
+    plt.close()
 
 
-    for filter in allfilters:
+    plt.plot (dateobs, cd12, 'o',label="CD12_{}".format (filter))
+    plt.plot (dateobs, cd21, 'o',label="CD21_{}".format (filter))
+    dateformat()
+    plt.legend()
+    plt.savefig ("wcstrend_cdnondiag_{}.png".format (cameraname))
+    plt.close()
 
-        plt.plot (dateobs, cd11, 'o', label="CD11_{}".format (filter))
-        plt.plot (dateobs, cd22, 'o',label="CD22_{}".format (filter))
-        plt.legend()
-        dateformat()
-        plt.savefig ("wcstrend_cddiag_{}.png".format(cameraname))
-        plt.close()
 
-    for filter in allfilters:
-        plt.plot (dateobs,cd12, 'o',label="CD12_{}".format (filter))
-        plt.plot (dateobs,cd21, 'o',label="CD21_{}".format (filter))
-        dateformat()
-        plt.legend()
-        plt.savefig ("wcstrend_cdnondiag_{}.png".format (cameraname))
-        plt.close()
+    plt.plot (dateobs, sip_a11, 'o',label="A_1_1_{}".format (filter))
+    plt.plot (dateobs, sip_a20, 'o',label="A_2_0_{}".format (filter))
+    plt.plot (dateobs, sip_a02, 'o',label="A_0_2_{}".format (filter))
+    plt.legend()
+    dateformat()
+    plt.savefig ("wcstrend_sipa_{}.png".format(cameraname))
+    plt.close()
 
-    for filter in allfilters:
-        plt.plot (dateobs,sip_a11, 'o',label="A_1_1_{}".format (filter))
-        plt.plot (dateobs,sip_a20, 'o',label="A_2_0_{}".format (filter))
-        plt.plot (dateobs,sip_a02, 'o',label="A_0_2_{}".format (filter))
-        plt.legend()
-        dateformat()
-        plt.savefig ("wcstrend_sipa_{}.png".format(cameraname))
-        plt.close()
 
-    for filter in allfilters:
-        plt.plot (dateobs,sip_b11, 'o',label="B_1_1_{}".format (filter))
-        plt.plot (dateobs,sip_b20, 'o',label="B_2_0_{}".format (filter))
-        plt.plot (dateobs,sip_b02, 'o',label="B_0_2_{}".format (filter))
-        plt.legend()
-        dateformat()
-        plt.savefig ("wcstrend_sipb_{}.png".format(cameraname))
-        plt.close()
+    plt.plot (dateobs, sip_b11, 'o',label="B_1_1_{}".format (filter))
+    plt.plot (dateobs, sip_b20, 'o',label="B_2_0_{}".format (filter))
+    plt.plot (dateobs, sip_b02, 'o',label="B_0_2_{}".format (filter))
+    plt.legend()
+    dateformat()
+    plt.savefig ("wcstrend_sipb_{}.png".format(cameraname))
+    plt.close()
+
+
+    plt.subplot (2,2,1)
+    plt.plot (allsolutions['azimuth'], cd11, '.' , label='CD1_1')
+    plt.plot (allsolutions['azimuth'], cd22, '.' , label='CD2_2')
+    plt.legend()
+    plt.xlabel("Azimuth [deg]")
+
+    plt.subplot (2,2,2)
+    plt.plot (allsolutions['azimuth'],  cd21, '.', label='CD1_2')
+    plt.plot (allsolutions['azimuth'],  cd12, '.', label='CD2_1')
+    plt.legend()
+    plt.xlabel('Azimuth')
+
+    plt.subplot (2,2,3)
+    plt.plot (allsolutions['altitude'], cd11, '.' , label='CD1_1')
+    plt.plot (allsolutions['altitude'], cd22, '.' , label='CD2_2')
+    plt.legend()
+    plt.xlabel("Altitude [deg]")
+
+    plt.subplot (2,2,4)
+    plt.plot (allsolutions['altitude'],  cd21, '.', label='CD1_2')
+    plt.plot (allsolutions['altitude'],  cd12, '.', label='CD2_1')
+    plt.legend()
+    plt.xlabel('Altitude')
+
+
+
+    plt.savefig("wcstrans_flexurecd_{}".format(cameraname))
+    plt.close()
+
+
 
 
 if __name__ == '__main__':

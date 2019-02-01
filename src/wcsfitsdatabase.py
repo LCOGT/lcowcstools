@@ -22,6 +22,8 @@ class wcsfitdatabase:
                       "dateobs text," \
                       " camera text," \
                       " filter text," \
+                      " altitude real," \
+                      " azimuth real," \
                       " rms real," \
                       " nstars int," \
                       " wcsjson text )"
@@ -34,12 +36,12 @@ class wcsfitdatabase:
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.commit()
 
-    def addmeasurement(self, identifier, dateobs, camera, filter, rms, nstars, WCSjson, commit=True):
+    def addmeasurement(self, identifier, dateobs, camera, filter, rms, nstars, azimuth, altitude, WCSjson, commit=True):
         with self.conn:
-            log.debug("Inserting: %s\n %s %s %s %s %s %s" % (
-                identifier, dateobs, camera, filter, rms, nstars, WCSjson))
-            self.conn.execute("insert or replace into wcsfit values (?,?,?,?,?,?,?)",
-                              (identifier, dateobs, camera, filter, rms, nstars, WCSjson,))
+            log.debug("Inserting: %s\n %s %s %s %s %s %s %s %s " % (
+                identifier, dateobs, camera, filter, rms, nstars, azimuth, altitude, WCSjson))
+            self.conn.execute("insert or replace into wcsfit values (?,?,?,?,?,?,?,?,?)",
+                              (identifier, dateobs, camera, filter, altitude, azimuth, rms, nstars, WCSjson,))
 
         if (commit):
             self.conn.commit()
@@ -83,7 +85,7 @@ class wcsfitdatabase:
         :return: astropy.table with query results. May be None if no results are returned.
         """
 
-        query = "select name,dateobs,camera,filter,wcsjson from wcsfit " \
+        query = "select name,dateobs,camera,filter, azimuth, altitude, wcsjson from wcsfit " \
                 "where (name like ?)"
 
         queryargs = ['%{}%'.format (camera) if camera is not None else '%', ]
@@ -105,7 +107,7 @@ class wcsfitdatabase:
             return None
 
         t = Table(allrows,
-                  names=['identifier', 'dateobs', 'camera', 'filter', 'wcs'])
+                  names=['identifier', 'dateobs', 'camera', 'filter', 'azimuth', 'altitude', 'wcs'])
         t['dateobs'] = t['dateobs'].astype(str)
         t['dateobs'] = astt.Time(t['dateobs'], scale='utc', format=None).to_datetime()
         t['wcs'] = t['wcs'].astype(str)
