@@ -50,7 +50,7 @@ class CatalogMatcher:
             return None
 
         if len(sourceCatalog['x']) < minobjects:
-            log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one.")
+            log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one." % (len(sourceCatalog['x']), minobjects))
             return None
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
@@ -337,7 +337,7 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         refcat, searchradii[0], minobjects=args.minmatched)
 
     if matchedCatalog is None:
-        log.info("returned emtpry catalog, not continuing.")
+        log.info("returned empty catalog, not continuing.")
         return
 
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
