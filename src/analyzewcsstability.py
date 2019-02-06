@@ -185,11 +185,11 @@ def diagnosticByCamera (cameraname, args):
 
 if __name__ == '__main__':
     args = parseCommandLine()
-
-    diagnosticByCamera("ak10", args)
-    diagnosticByCamera("ak01", args)
-    diagnosticByCamera("ak05", args)
-    diagnosticByCamera("ak06", args)
+    db = wcsfitdatabase(args.database)
+    cameras = db.getcameras()
+    db.close()
+    for camera in cameras:
+        diagnosticByCamera(camera, args)
 
 
 

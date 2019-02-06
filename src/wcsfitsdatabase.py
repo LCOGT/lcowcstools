@@ -73,7 +73,7 @@ class wcsfitdatabase:
 
         for c in allcameras:
             retarray.append(c[0])
-        log.info("Distinct cameras: %s" % retarray)
+        log.debug("Distinct cameras: %s" % retarray)
         return retarray
 
     def readmeasurements(self, camera=None, filters=None):
