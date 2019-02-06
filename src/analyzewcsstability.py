@@ -130,7 +130,7 @@ def diagnosticByCamera (cameraname, args):
                mode="expand", borderaxespad=0, ncol=3)
     dateformat()
     plt.ylabel ("SIP A coefficient")
-
+    plt.title ("{}\n\n".format(cameraname))
 
     plt.subplot(212)
     meanb11 = getmeanValue(sip_b11)
@@ -189,6 +189,8 @@ if __name__ == '__main__':
     diagnosticByCamera("ak10", args)
     diagnosticByCamera("ak01", args)
     diagnosticByCamera("ak05", args)
+    diagnosticByCamera("ak06", args)
+
 
 
 
