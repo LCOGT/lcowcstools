@@ -15,13 +15,13 @@ def dateformat (starttime=None,endtime=None):
     #plt.xlim([starttime, endtime])
     plt.gcf().autofmt_xdate()
     years = mdates.YearLocator()   # every year
-    months = mdates.MonthLocator(bymonth=[4, 7, 10])  # every month
+    months = mdates.MonthLocator(bymonth=[1,2,3,4,5,6,7,8,9,10,11,12])  # every month
     yearsFmt = mdates.DateFormatter('%Y %b')
     monthformat = mdates.DateFormatter('%b')
-    # plt.gca().xaxis.set_major_locator(years)
-    # plt.gca().xaxis.set_major_formatter(yearsFmt)
-    # plt.gca().xaxis.set_minor_locator(months)
-    # plt.gca().xaxis.set_minor_formatter(monthformat)
+    plt.gca().xaxis.set_major_locator(years)
+    plt.gca().xaxis.set_major_formatter(yearsFmt)
+    plt.gca().xaxis.set_minor_locator(months)
+    plt.gca().xaxis.set_minor_formatter(monthformat)
     plt.setp(plt.gca().xaxis.get_minorticklabels(), rotation=45)
     plt.setp(plt.gca().xaxis.get_majorticklabels(), rotation=45)
     plt.gca().grid(which='minor')
@@ -40,6 +40,12 @@ def parseCommandLine():
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
     return args
 
+
+def getmeanValue(data, m=2):
+    d = np.abs(data - np.median(data))
+    mdev = np.median(d)
+    s = d/mdev if mdev else 0.
+    return np.mean (data[s<m])
 
 def diagnosticByCamera (cameraname, args):
 
@@ -104,21 +110,46 @@ def diagnosticByCamera (cameraname, args):
     plt.close()
 
 
-    plt.plot (dateobs, sip_a11, 'o',label="A_1_1_{}".format (filter))
-    plt.plot (dateobs, sip_a20, 'o',label="A_2_0_{}".format (filter))
-    plt.plot (dateobs, sip_a02, 'o',label="A_0_2_{}".format (filter))
-    plt.legend()
-    dateformat()
-    plt.savefig ("wcstrend_sipa_{}.png".format(cameraname))
-    plt.close()
 
 
-    plt.plot (dateobs, sip_b11, 'o',label="B_1_1_{}".format (filter))
-    plt.plot (dateobs, sip_b20, 'o',label="B_2_0_{}".format (filter))
-    plt.plot (dateobs, sip_b02, 'o',label="B_0_2_{}".format (filter))
-    plt.legend()
+
+
+    fig = plt.figure(figsize=(10, 8))
+    plt.subplot(211)
+    meana11 = getmeanValue(sip_a11)
+    meana02 = getmeanValue(sip_a02)
+    meana20 = getmeanValue(sip_a20)
+    plt.plot (dateobs, sip_a11, 'o',label="A_1_1 {: 6e}".format (meana11))
+    plt.plot (dateobs, sip_a20, 'o',label="A_2_0 {: 6e}".format (meana20))
+    plt.plot (dateobs, sip_a02, 'o',label="A_0_2 {: 6e}".format (meana02))
+    plt.axhline(meana11)
+    plt.axhline(meana20)
+    plt.axhline(meana02)
+
+    lgd1=plt.legend(bbox_to_anchor=(0,01.02,1,0.2), loc="lower left",
+               mode="expand", borderaxespad=0, ncol=3)
     dateformat()
-    plt.savefig ("wcstrend_sipb_{}.png".format(cameraname))
+    plt.ylabel ("SIP A coefficient")
+
+
+    plt.subplot(212)
+    meanb11 = getmeanValue(sip_b11)
+    meanb02 = getmeanValue(sip_b02)
+    meanb20 = getmeanValue(sip_b20)
+    plt.plot (dateobs, sip_b11, 'o',label="B_1_1 {: 6e}".format (meanb11))
+    plt.plot (dateobs, sip_b20, 'o',label="B_2_0 {: 6e}".format (meanb20))
+    plt.plot (dateobs, sip_b02, 'o',label="B_0_2 {: 6e}".format (meanb02))
+
+    lgd2 = plt.legend(bbox_to_anchor=(0,01.02,1,0.2), loc="lower left",
+               mode="expand", borderaxespad=0, ncol=3)
+    dateformat()
+    plt.axhline(meanb11)
+    plt.axhline(meanb20)
+    plt.axhline(meanb02)
+    plt.ylabel ("SIP B coefficient")
+
+    plt.tight_layout()
+    plt.savefig ("wcstrend_sipab_{}.png".format(cameraname),bbox_extra_artists=(lgd1,lgd2))
     plt.close()
 
 
@@ -157,5 +188,7 @@ if __name__ == '__main__':
 
     diagnosticByCamera("ak10", args)
     diagnosticByCamera("ak01", args)
+    diagnosticByCamera("ak05", args)
+
 
 
