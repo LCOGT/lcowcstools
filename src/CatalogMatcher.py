@@ -16,6 +16,7 @@ from random import random
 
 import argparse
 
+from LCOWCSLookupProvider import getWCSForcamera
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase
@@ -34,7 +35,7 @@ class CatalogMatcher:
     '''
 
     @staticmethod
-    def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5, minobjects=1e20):
+    def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5, minobjects=1e20, undistort = False):
         ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
          a matchedcatalog object.'''
 
@@ -50,6 +51,8 @@ class CatalogMatcher:
         if len(sourceCatalog['x']) < minobjects:
             log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one." % (len(sourceCatalog['x']), minobjects))
             return None
+
+
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
 
@@ -88,6 +91,22 @@ class CatalogMatcher:
             altitude = hdu[1].header['ALTITUDE']
 
         hdu.close()
+
+
+        if undistort:
+
+            sip =getWCSForcamera (camera, image_wcs.wcs.crpix[0],image_wcs.wcs.crpix[1])
+            if sip is not None:
+
+                log.info ("undistorting image with sip %s" %  sip.crpix)
+                uv = sip.pix2foc (np.asarray([sourceCatalog['x'],sourceCatalog['y']]).T,1)
+                u = uv[:,0] + image_wcs.wcs.crpix[0]
+                v = uv[:,1] + image_wcs.wcs.crpix[1]
+                print (sourceCatalog['x'][0],sourceCatalog['y'][0],u[0],v[0])
+                sourceCatalog['x'] = u
+                sourceCatalog['y'] = v
+
+
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
 
@@ -330,7 +349,7 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
     matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
         image,
-        refcat, searchradii[0], minobjects=args.minmatched)
+        refcat, searchradii[0], minobjects=args.minmatched, undistort=args.undistort)
 
     if matchedCatalog is None:
         log.info("returned empty catalog, not continuing.")
@@ -377,6 +396,7 @@ def parseCommandLine():
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
     parser.add_argument('--fitorder', type=int, default=2)
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
+    parser.add_argument('--undistort', action='store_true', help="Undistort input coordiante catalog before WCS fitting.")
     parser.add_argument('--reprocess', action='store_true', help="Reprocess even though file may have been processed already.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')

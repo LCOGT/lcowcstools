@@ -105,6 +105,7 @@ class blindGaiaAstrometrySourceCatalogProvider(SourceCatalogProvider):
         xwin, ywin, flag = sep.winpos(image_data, objects['x'], objects['y'], sig)
         sourcecatalog = Table([xwin, ywin], names=['x', 'y'])
 
+
         # Lets refine the WCS solution.
         # TODO: Define condition when we want to refine the WCS
         submitImageInsteadofCatalog = True
