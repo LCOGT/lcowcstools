@@ -15,7 +15,7 @@ def dateformat (starttime=None,endtime=None):
     #plt.xlim([starttime, endtime])
     plt.gcf().autofmt_xdate()
     years = mdates.YearLocator()   # every year
-    months = mdates.MonthLocator(bymonth=[1,2,3,4,5,6,7,8,9,10,11,12])  # every month
+    months = mdates.MonthLocator(bymonth=[2,3,4,5,6,7,8,9,10,11,12])  # every month
     yearsFmt = mdates.DateFormatter('%Y %b')
     monthformat = mdates.DateFormatter('%b')
     plt.gca().xaxis.set_major_locator(years)
@@ -150,6 +150,16 @@ def diagnosticByCamera (cameraname, args):
 
     plt.tight_layout()
     plt.savefig ("wcstrend_sipab_{}.png".format(cameraname),bbox_extra_artists=(lgd1,lgd2))
+
+    sip = {cameraname: { 'SIPA_1_1' : meana11,
+                         'SIPA_0_2' : meana02,
+                         'SIPA_2_0' : meana20,
+                         'SIPB_1_1' : meanb11,
+                         'SIPB_0_2' : meanb02,
+                         'SIPB_2_0' : meanb20,
+                         }}
+    print (sip)
+
     plt.close()
 
 

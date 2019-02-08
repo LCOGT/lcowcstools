@@ -19,9 +19,7 @@ import argparse
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase
-
 log = logging.getLogger(__name__)
-
 
 class CatalogMatcher:
     '''
@@ -46,7 +44,7 @@ class CatalogMatcher:
             sourceCatalogProvider = blindGaiaAstrometrySourceCatalogProvider()
 
         sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
-        if sourceCatalog is None:
+        if (sourceCatalog is None) or (image_wcs is None):
             return None
 
         if len(sourceCatalog['x']) < minobjects:
@@ -102,8 +100,6 @@ class CatalogMatcher:
         matchedCatalog.altitude = altitude
         matchedCatalog.azimuth = azimuth
         matchedCatalog.azimuth = azimuth
-
-
         return matchedCatalog
 
     def matchCatalogs(self, source=None, reference=None, wcs=None, matchradius=5):
@@ -284,7 +280,7 @@ class SIPOptimizer:
             sip_b[0][3] = sipcoefficients[15]
 
         sip = Sip(sip_a, sip_b,
-                  None, None, matchedCatalog.wcs.wcs.crval)
+                  None, None, matchedCatalog.wcs.wcs.crpix)
         matchedCatalog.wcs.sip = sip
 
         matchedCatalog.wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
@@ -327,7 +323,7 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
     pngbasename = os.path.basename(image)
     if args.database:
         wcsdb = wcsfitdatabase(args.database)
-        if wcsdb.checkifalreadyused(pngbasename):
+        if wcsdb.checkifalreadyused(pngbasename) and  not args.reprocess:
             log.info("File already measured. Not doing the wame work twice; skipping")
             wcsdb.close()
             return
@@ -380,6 +376,7 @@ def parseCommandLine():
     parser.add_argument('--minmatched', type=int, default=50,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
+    parser.add_argument('--reprocess', action='store_true', help="Reprocess even though file may have been processed already.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
     parser.add_argument('--searchradii', type=float, nargs='+', default=[10,10,5,3,2])
