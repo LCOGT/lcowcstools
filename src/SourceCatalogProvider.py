@@ -127,7 +127,7 @@ class blindGaiaAstrometrySourceCatalogProvider(SourceCatalogProvider):
                 response = requests.post("{}/catalog/".format(self.url), json=payload)
             try:
                 response = response.json()
-                log.info (response)
+                log.debug (response)
             except:
                 log.error ("Error while executing astrometry.net service %s" % payload)
                 return None, None

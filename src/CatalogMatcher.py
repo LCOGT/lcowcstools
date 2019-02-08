@@ -341,7 +341,7 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
 
-    opt = SIPOptimizer(matchedCatalog, maxorder=2)
+    opt = SIPOptimizer(matchedCatalog, maxorder=args.fitorder)
 
     if args.makepng:
         matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
@@ -349,7 +349,7 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
     for searchradius in searchradii[1:]:
         matchedCatalog.matchCatalogs(matchradius=searchradius)
-        opt = SIPOptimizer(matchedCatalog, maxorder=2)
+        opt = SIPOptimizer(matchedCatalog, maxorder=args.fitorder)
         opt.improveSIP()
 
     if args.makepng:
@@ -375,6 +375,7 @@ def parseCommandLine():
                         help='Location of Atlas refcat2 catalog in slite forrmat')
     parser.add_argument('--minmatched', type=int, default=50,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
+    parser.add_argument('--fitorder', type=int, default=2)
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--reprocess', action='store_true', help="Reprocess even though file may have been processed already.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
