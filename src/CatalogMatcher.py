@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 
@@ -16,9 +17,9 @@ from random import random
 
 import argparse
 
-from LCOWCSLookupProvider import getWCSForcamera
+from LCOWCSLookupProvider import getWCSForcamera, transformList, astrometryServiceRefinceWCS
 from ReferenceCatalogProvider import refcat2, gaiaonline
-from SourceCatalogProvider import e91SourceCatalogProvider, blindGaiaAstrometrySourceCatalogProvider
+from SourceCatalogProvider import e91SourceCatalogProvider, SEPSourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase
 log = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class CatalogMatcher:
         if ('e91.fits' in imagepath):
             sourceCatalogProvider = e91SourceCatalogProvider()
         else:
-            sourceCatalogProvider = blindGaiaAstrometrySourceCatalogProvider()
+            sourceCatalogProvider = SEPSourceCatalogProvider()
 
         sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
         if (sourceCatalog is None) or (image_wcs is None):
@@ -52,12 +53,10 @@ class CatalogMatcher:
             log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one." % (len(sourceCatalog['x']), minobjects))
             return None
 
-
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
 
         # TODO: get camera identifier, date obs, etc
-
         hdu = fits.open (imagepath)
         exptime=None
         filter = None
@@ -92,20 +91,15 @@ class CatalogMatcher:
 
         hdu.close()
 
-
+        # remove the distortion from the input catalog.
         if undistort:
-
             sip =getWCSForcamera (camera, image_wcs.wcs.crpix[0],image_wcs.wcs.crpix[1])
             if sip is not None:
-
-                log.info ("undistorting image with sip %s" %  sip.crpix)
-                uv = sip.pix2foc (np.asarray([sourceCatalog['x'],sourceCatalog['y']]).T,1)
-                u = uv[:,0] + image_wcs.wcs.crpix[0]
-                v = uv[:,1] + image_wcs.wcs.crpix[1]
-                print (sourceCatalog['x'][0],sourceCatalog['y'][0],u[0],v[0])
+                log.info ("undistorting image")
+                u,v = transformList (sourceCatalog['x'], sourceCatalog['y'], sip)
                 sourceCatalog['x'] = u
                 sourceCatalog['y'] = v
-
+                image_wcs = astrometryServiceRefinceWCS (sourceCatalog, image_wcs)
 
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
@@ -355,15 +349,19 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         log.info("returned empty catalog, not continuing.")
         return
 
+    if args.makepng:
+        matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
+
+    # Preserve the
+    initialPointing = copy.deepcopy (matchedCatalog.wcs.wcs.crval)
+
+    # do a full fit
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
         log.warning("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (
         len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
 
     opt = SIPOptimizer(matchedCatalog, maxorder=args.fitorder)
-
-    if args.makepng:
-        matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
     opt.improveSIP()
 
     for searchradius in searchradii[1:]:
@@ -376,9 +374,12 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
 
     if (args.database):
         wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None, None, matchedCatalog.azimuth, matchedCatalog.altitude,
-                              wcsdb.wcstojson(matchedCatalog.wcs))
-        log.info(matchedCatalog.wcs)
+                            wcsdb.wcstojson(matchedCatalog.wcs))
+    log.info(matchedCatalog.wcs)
 
+    # Final report
+    finalPointing = matchedCatalog.wcs.wcs.crval
+    log.info ('Fitting updated pointing at CRPIX by {}"'.format ( (finalPointing-initialPointing)*3600))
     if (args.database):
         wcsdb.close()
 
