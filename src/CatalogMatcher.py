@@ -99,7 +99,11 @@ class CatalogMatcher:
                 u,v = transformList (sourceCatalog['x'], sourceCatalog['y'], sip)
                 sourceCatalog['x'] = u
                 sourceCatalog['y'] = v
-                image_wcs = astrometryServiceRefinceWCS (sourceCatalog, image_wcs)
+                dedistortedwcs = astrometryServiceRefinceWCS (sourceCatalog, image_wcs)
+                if dedistortedwcs is not None:
+                    image_wcs = dedistortedwcs
+                else:
+                    log.warning ("astrometry.net did not find a solution on the undistorted image. Using original wcs")
 
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
@@ -120,7 +124,7 @@ class CatalogMatcher:
         If no new catalogs are given, the match will be done on the chached catalogs of the class.
         '''
 
-        retCatalog = None
+        self.matchedCatalog = None
 
         # Cache management
         if wcs is not None:
@@ -150,12 +154,10 @@ class CatalogMatcher:
                                          distance[matchcondition]],
                                         names=['x', 'y', 'RA', 'Dec', 'distarcsec']
                                         )
-
-            log.debug("Catalog matched %d entries" % len(self.matchedCatalog))
-
         except:
             log.exception("Error while transforming and matching")
-        log.info ("MatchCatalogs found % 10i pairs at search radius % 6.3f" % (len(self.matchedCatalog['x']), matchradius))
+        nummatched = len(self.matchedCatalog) if self.matchedCatalog is not None else 0
+        log.info ("MatchCatalogs found % 10i pairs at search radius % 6.3f" % (nummatched, matchradius))
         return self.matchedCatalog
 
     def updateWCSandUpdateRMS(self, usewcs=None):

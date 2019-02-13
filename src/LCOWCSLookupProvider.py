@@ -12,6 +12,9 @@ akwcslookup = {
     'ak01': {'SIPA_1_1': 2.8875384573560257e-06, 'SIPA_0_2': -1.2776642259520679e-05, 'SIPA_2_0': 6.873210426347869e-06,
              'SIPB_1_1': 1.8322056773537455e-05, 'SIPB_0_2': 4.49844648740455e-06, 'SIPB_2_0': 2.076956178814459e-06},
 
+    'ak05': {'SIPA_1_1': -6.034337103080695e-06, 'SIPA_0_2': -1.1276384587835203e-05, 'SIPA_2_0': 1.2802411758347013e-05,
+             'SIPB_1_1': 2.4116031017471104e-05, 'SIPB_0_2': -4.302508968114081e-06, 'SIPB_2_0': 5.78043080411828e-07},
+
     'ak06': {'SIPA_1_1': -9.220745938359626e-07, 'SIPA_0_2': -1.085016354858831e-05, 'SIPA_2_0': 1.3092279633304746e-05,
              'SIPB_1_1': 2.311880941128194e-05, 'SIPB_0_2': -1.5497196904810146e-06, 'SIPB_2_0': -3.348831288004136e-07},
 
@@ -59,7 +62,7 @@ def transformList (x,y, sip):
     :return: (u,v) transformed pixels, but with CRPIX reapplied
     """
 
-    log.debug ("undistorting image with sip %s" %  sip.crpix)
+    log.debug ("undistorting source catlog with sip %s" %  sip.crpix)
     uv = sip.pix2foc (np.asarray([x,y]).T,1)
     u = uv[:,0] + sip.crpix[0]
     v = uv[:,1] + sip.crpix[1]
@@ -89,6 +92,7 @@ def astrometryServiceRefinceWCS (sourceCatalog, wcs):
         log.error ("Error while executing astrometry.net service with payload:\n %s\n\nGot Response %s" % payload, response)
         return wcs
 
+    image_wcs=None
     if 'CD1_1' in response:
         # Build a WCS, reverse-transform the source list.
         image_wcs = WCS(naxis=2)
@@ -103,8 +107,11 @@ def astrometryServiceRefinceWCS (sourceCatalog, wcs):
 
         # We now have a good first order wcs, let's find all the sources in the image.
 
-    log.debug ("Updated Gaia-service wcs:\n {}".format(image_wcs))
 
-    newPointing = np.asarray([image_wcs.wcs.crval[0],  image_wcs.wcs.crval[1]])
-    log.info ('Gaia service updated image pointing at CRPIX by {}"'.format ( (newPointing-originalPointing)*3600))
+        log.debug ("Updated Gaia-service wcs:\n {}".format(image_wcs))
+
+        newPointing = np.asarray([image_wcs.wcs.crval[0],  image_wcs.wcs.crval[1]])
+        log.info ('Gaia service updated image pointing at CRPIX by {}"'.format ( (newPointing-originalPointing)*3600))
+    else:
+        log.warning ("Astrometry.net could not find a solution!")
     return image_wcs

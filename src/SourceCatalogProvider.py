@@ -73,7 +73,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
             except:
                 log.warning("NO RA/DEC found yet, trying next extension")
 
-        log.debug ("Out of box WCS is:\n{}".format (original_wcs))
+        log.debug ("FITS file provided WCS is:\n{}".format (original_wcs))
 
         # Get a source catalog
         # TODO:    Better job of identifying the correct fits extension
@@ -91,7 +91,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
         xwin, ywin, flag = sep.winpos(image_data, objects['x'], objects['y'], sig)
 
         sourcecatalog = Table([xwin, ywin, objects['flux']], names=['x', 'y', 'flux'])
-
+        log.debug ("Sep found {} sources in image".format (len(sourcecatalog['x'])))
         # Lets refine the WCS solution.
         # TODO: Define condition when we want to refine the WCS
         submitImageInsteadofCatalog = False
@@ -101,10 +101,13 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                 #response = requests.post("{}/image/".format(self.url), json=payload)
                 pass
             else:
+                log.info ("Sending raw catalog to astrometry.net service")
                 image_wcs = astrometryServiceRefinceWCS (sourcecatalog, original_wcs)
-
+                if image_wcs is None:
+                    image_wcs = original_wcs
         else:
             image_wcs = original_wcs
+
         return sourcecatalog, image_wcs
 
 
