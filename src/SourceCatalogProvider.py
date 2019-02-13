@@ -33,9 +33,9 @@ class e91SourceCatalogProvider(SourceCatalogProvider):
 
     def get_source_catalog(self, imagename):
         e91image = fits.open(imagename)
-        ra = e91image['SCI'].header['CRVAL1']
-        dec = e91image['SCI'].header['CRVAL2']
-        log.debug("Image is at RA / Dec %f %f " % (ra, dec))
+        # ra = e91image['SCI'].header['CRVAL1']
+        # dec = e91image['SCI'].header['CRVAL2']
+        # log.debug("Image is at RA / Dec %f %f " % (ra, dec))
         try:
             sourceCatalog = e91image['CAT'].data
             sourceCatalog['x'] = sourceCatalog['xwin']
@@ -56,8 +56,6 @@ class e91SourceCatalogProvider(SourceCatalogProvider):
 class SEPSourceCatalogProvider(SourceCatalogProvider):
     ''' Submit fits image to LCO GAIA astrometry service for WCS refinenement and run SEP source finder on image data.
     '''
-    # lco astrometry service URL
-    url = 'http://astrometry.lco.gtn/'
 
     def get_source_catalog(self, imagename):
 
@@ -72,10 +70,11 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                 continue
             except:
                 log.warning("NO RA/DEC found yet, trying next extension")
+                original_wcs = None
 
         log.debug ("FITS file provided WCS is:\n{}".format (original_wcs))
 
-        # Get a source catalog
+        # Create a source catalog
         # TODO:    Better job of identifying the correct fits extension
         image_data = fitsimage[1].data
         image_data = image_data.astype(float)
@@ -89,19 +88,18 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                                            normflux=objects['flux'], subpix=5)
         sig = 2.0 / 2.35 * flux_radii[:, 1]
         xwin, ywin, flag = sep.winpos(image_data, objects['x'], objects['y'], sig)
-
         sourcecatalog = Table([xwin, ywin, objects['flux']], names=['x', 'y', 'flux'])
+
         log.debug ("Sep found {} sources in image".format (len(sourcecatalog['x'])))
+
         # Lets refine the WCS solution.
         # TODO: Define condition when we want to refine the WCS
         submitImageInsteadofCatalog = False
         if not 0:
             if submitImageInsteadofCatalog:
-                #payload = {'ra': ra, 'dec': dec, 'image_path': imagename}
-                #response = requests.post("{}/image/".format(self.url), json=payload)
                 pass
             else:
-                log.info ("Sending raw catalog to astrometry.net service")
+                log.info ("Sending raw source catalog to astrometry.net service")
                 image_wcs = astrometryServiceRefinceWCS (sourcecatalog, original_wcs)
                 if image_wcs is None:
                     image_wcs = original_wcs
