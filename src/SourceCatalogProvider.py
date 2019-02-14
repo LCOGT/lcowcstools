@@ -10,6 +10,8 @@ import logging
 from LCOWCSLookupProvider import astrometryServiceRefineWCSFromCatalog
 
 log = logging.getLogger(__name__)
+MIN_AREA = 9
+THRESHOLD = 10.0
 
 
 class SourceCatalogProvider(metaclass=abc.ABCMeta):
@@ -57,6 +59,9 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
     ''' Submit fits image to LCO GAIA astrometry service for WCS refinenement and run SEP source finder on image data.
     '''
 
+    def __init__(self, refineWCSViaLCO=True):
+        self.refineWCSViaLCO = refineWCSViaLCO
+
     def get_source_catalog(self, imagename):
 
         image_wcs = None
@@ -72,7 +77,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                 log.warning("NO RA/DEC found yet, trying next extension")
                 original_wcs = None
 
-        log.debug ("FITS file provided WCS is:\n{}".format (original_wcs))
+        log.debug("FITS file provided WCS is:\n{}".format(original_wcs))
 
         # Create a source catalog
         # TODO:    Better job of identifying the correct fits extension
@@ -81,32 +86,45 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
         backGround = sep.Background(image_data)
         image_data = image_data - backGround
         backGround = sep.Background(image_data)
+        # find sources
+        objects = sep.extract(image_data, 5, backGround.globalrms, deblend_cont=0.005)
+        objects = Table(objects)
+        # cleanup
+        objects = objects[objects['flag'] < 8]
+        objects = prune_nans_from_table(objects)
+        fwhm = 2.0 * (np.log(2) * (objects['a'] ** 2.0 + objects['b'] ** 2.0)) ** 0.5
+        objects = objects[fwhm > 1.0]
 
-        objects = sep.extract(image_data, 5, backGround.globalrms)
         flux_radii, flag = sep.flux_radius(image_data, objects['x'], objects['y'],
                                            6.0 * objects['a'], [0.25, 0.5, 0.75],
                                            normflux=objects['flux'], subpix=5)
         sig = 2.0 / 2.35 * flux_radii[:, 1]
         xwin, ywin, flag = sep.winpos(image_data, objects['x'], objects['y'], sig)
-        sourcecatalog = Table([xwin, ywin, objects['flux']], names=['x', 'y', 'flux'])
+        # python to FITS zero point convention. lower left pixel in image is 1/1, not 0/0
+        sourcecatalog = Table([xwin + 1, ywin + 1, objects['flux']], names=['x', 'y', 'flux'])
 
-        log.debug ("Sep found {} sources in image".format (len(sourcecatalog['x'])))
+        log.debug("Sep found {} sources in image".format(len(sourcecatalog['x'])))
 
         # Lets refine the WCS solution.
         # TODO: Define condition when we want to refine the WCS
         submitImageInsteadofCatalog = False
-        if not 0:
-            if submitImageInsteadofCatalog:
-                pass
-            else:
-                log.info ("Sending raw source catalog to astrometry.net service")
-                image_wcs = astrometryServiceRefineWCSFromCatalog (sourcecatalog, original_wcs)
-                if image_wcs is None:
-                    image_wcs = original_wcs
+        if self.refineWCSViaLCO:
+
+            log.info("Sending raw source catalog to astrometry.net service")
+            image_wcs = astrometryServiceRefineWCSFromCatalog(sourcecatalog, original_wcs)
+            if image_wcs is None:
+                image_wcs = original_wcs
         else:
             image_wcs = original_wcs
 
         return sourcecatalog, image_wcs
+
+
+def prune_nans_from_table(table):
+    nan_in_row = np.zeros(len(table), dtype=bool)
+    for col in table.colnames:
+        nan_in_row |= np.isnan(table[col])
+    return table[~nan_in_row]
 
 
 if __name__ == '__main__':
