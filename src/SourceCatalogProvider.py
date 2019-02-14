@@ -7,7 +7,7 @@ from astropy.table import Table
 import sep
 import logging
 
-from LCOWCSLookupProvider import astrometryServiceRefinceWCS
+from LCOWCSLookupProvider import astrometryServiceRefineWCSFromCatalog
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                 pass
             else:
                 log.info ("Sending raw source catalog to astrometry.net service")
-                image_wcs = astrometryServiceRefinceWCS (sourcecatalog, original_wcs)
+                image_wcs = astrometryServiceRefineWCSFromCatalog (sourcecatalog, original_wcs)
                 if image_wcs is None:
                     image_wcs = original_wcs
         else:

@@ -17,7 +17,7 @@ from random import random
 
 import argparse
 
-from LCOWCSLookupProvider import getWCSForcamera, transformList, astrometryServiceRefinceWCS
+from LCOWCSLookupProvider import getWCSForcamera, transformList, astrometryServiceRefineWCSFromCatalog
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, SEPSourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase
@@ -99,7 +99,7 @@ class CatalogMatcher:
                 u,v = transformList (sourceCatalog['x'], sourceCatalog['y'], sip)
                 sourceCatalog['x'] = u
                 sourceCatalog['y'] = v
-                dedistortedwcs = astrometryServiceRefinceWCS (sourceCatalog, image_wcs)
+                dedistortedwcs = astrometryServiceRefineWCSFromCatalog (sourceCatalog, image_wcs)
                 if dedistortedwcs is not None:
                     image_wcs = dedistortedwcs
                 else:
