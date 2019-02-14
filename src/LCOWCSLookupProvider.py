@@ -68,7 +68,7 @@ def transformList(x, y, sip):
     :return: (u,v) transformed pixels, but with CRPIX reapplied
     """
 
-    log.debug("undistorting source catlog with sip %s" % sip.crpix)
+    log.debug("undistorting source catalog with sip %s" % sip.crpix)
     uv = sip.pix2foc(np.asarray([x, y]).T, 1)
     u = uv[:, 0] + sip.crpix[0]
     v = uv[:, 1] + sip.crpix[1]
