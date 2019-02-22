@@ -17,7 +17,8 @@ from random import random
 
 import argparse
 
-from LCOWCSLookupProvider import getWCSForcamera, transformList, astrometryServiceRefineWCSFromCatalog
+from LCOWCSLookupProvider import getWCSForcamera, transformList
+from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, SEPSourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase

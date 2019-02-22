@@ -7,7 +7,7 @@ from astropy.table import Table
 import sep
 import logging
 
-from LCOWCSLookupProvider import astrometryServiceRefineWCSFromCatalog
+from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
 
 log = logging.getLogger(__name__)
 MIN_AREA = 9
