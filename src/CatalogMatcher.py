@@ -2,19 +2,15 @@ import copy
 import logging
 import os
 
-from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS, Sip
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.io import fits
-import astropy
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import scipy.optimize as optimize
-from random import random
-
 import argparse
 
 from LCOWCSLookupProvider import getWCSForcamera, transformList
@@ -22,7 +18,9 @@ from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
 from ReferenceCatalogProvider import refcat2, gaiaonline
 from SourceCatalogProvider import e91SourceCatalogProvider, SEPSourceCatalogProvider
 from wcsfitsdatabase import wcsfitdatabase
+
 log = logging.getLogger(__name__)
+
 
 class CatalogMatcher:
     '''
@@ -37,7 +35,8 @@ class CatalogMatcher:
     '''
 
     @staticmethod
-    def createMatchedCatalogForLCOe91(imagepath, referenceCatalogProvider, matchradius=5, minobjects=1e20, undistort = False):
+    def createMatchedCatalogForLCO(imagepath, referenceCatalogProvider, matchradius=5, minobjects=1e20,
+                                   undistort=False):
         ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
          a matchedcatalog object.'''
 
@@ -51,60 +50,58 @@ class CatalogMatcher:
             return None
 
         if len(sourceCatalog['x']) < minobjects:
-            log.info ("Not enough stars found in source catalog (%d). %d are required. Skipping this one." % (len(sourceCatalog['x']), minobjects))
+            log.info("Not enough stars found in source catalog (%d). %d are required. Skipping this one." % (
+                len(sourceCatalog['x']), minobjects))
             return None
 
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
 
         # TODO: get camera identifier, date obs, etc
-        hdu = fits.open (imagepath)
-        exptime=None
+
+        exptime = None
         filter = None
         camera = None
         dateobs = None
         azimuth = None
         altitude = None
-        if 'EXPTIME' in hdu[0].header:
-            exptime = hdu[0].header['EXPTIME']
-        if 'EXPTIME' in hdu[1].header:
-            exptime = hdu[1].header['EXPTIME']
-        if ('FILTER') in hdu[0].header:
-            filter = hdu[0].header['FILTER']
-        if ('FILTER') in hdu[1].header:
-            filter = hdu[1].header['FILTER']
-        if 'DATE-OBS' in hdu[0].header:
-            dateobs = hdu[0].header['DATE-OBS']
-        if 'DATE-OBS' in hdu[1].header:
-            dateobs = hdu[1].header['DATE-OBS']
-        if 'INSTRUME' in hdu[0].header:
-            camera = hdu[0].header['INSTRUME']
-        if 'INSTRUME' in hdu[1].header:
-            camera = hdu[1].header['INSTRUME']
-        if 'AZIMUTH' in hdu[0].header:
-            azimuth = hdu[0].header['AZIMUTH']
-        if 'AZIMUTH' in hdu[1].header:
-            azimuth = hdu[1].header['AZIMUTH']
-        if 'ALTITUDE' in hdu[0].header:
-            altitude = hdu[0].header['ALTITUDE']
-        if 'ALTITUDE' in hdu[1].header:
-            altitude = hdu[1].header['ALTITUDE']
 
+        hdu = fits.open(imagepath)
+        # TODO: We are opening and closing fits files quite a lot here, might be not most efficient.
+        # Go searching for meta data, in multiple extension ssince we might have a .fz compressed file :-(
+        for extension in [0, 1]:
+            if 'EXPTIME' in hdu[extension].header:
+                exptime = hdu[extension].header['EXPTIME']
+
+            if ('FILTER') in hdu[extension].header:
+                filter = hdu[extension].header['FILTER']
+
+            if 'DATE-OBS' in hdu[extension].header:
+                dateobs = hdu[extension].header['DATE-OBS']
+
+            if 'INSTRUME' in hdu[extension].header:
+                camera = hdu[extension].header['INSTRUME']
+
+            if 'AZIMUTH' in hdu[extension].header:
+                azimuth = hdu[extension].header['AZIMUTH']
+
+            if 'ALTITUDE' in hdu[extension].header:
+                altitude = hdu[extension].header['ALTITUDE']
         hdu.close()
 
-        # remove the distortion from the input catalog.
+        # remove the distortion from the input catalog if requested and refine the WCS.
         if undistort:
-            sip =getWCSForcamera (camera, image_wcs.wcs.crpix[0],image_wcs.wcs.crpix[1])
+            sip = getWCSForcamera(camera, image_wcs.wcs.crpix[0], image_wcs.wcs.crpix[1])
             if sip is not None:
-                log.info ("undistorting image")
-                u,v = transformList (sourceCatalog['x'], sourceCatalog['y'], sip)
+                log.info("undistorting image")
+                u, v = transformList(sourceCatalog['x'], sourceCatalog['y'], sip)
                 sourceCatalog['x'] = u
                 sourceCatalog['y'] = v
-                dedistortedwcs = astrometryServiceRefineWCSFromCatalog (sourceCatalog, image_wcs)
+                dedistortedwcs = astrometryServiceRefineWCSFromCatalog(sourceCatalog, image_wcs)
                 if dedistortedwcs is not None:
                     image_wcs = dedistortedwcs
                 else:
-                    log.warning ("astrometry.net did not find a solution on the undistorted image. Using original wcs")
+                    log.warning("astrometry.net did not find a solution on the undistorted image. Using original wcs")
 
         # fetch a reference catalog:
         referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
@@ -152,13 +149,15 @@ class CatalogMatcher:
                                          self.source['y'][idx][matchcondition],
                                          self.reference['RA'][matchcondition],
                                          self.reference['Dec'][matchcondition],
-                                         distance[matchcondition]],
+                                         distance[matchcondition]
+                                         ],
                                         names=['x', 'y', 'RA', 'Dec', 'distarcsec']
                                         )
         except:
             log.exception("Error while transforming and matching")
+
         nummatched = len(self.matchedCatalog) if self.matchedCatalog is not None else 0
-        log.info ("MatchCatalogs found % 10i pairs at search radius % 6.3f" % (nummatched, matchradius))
+        log.info("MatchCatalogs found {: 10d} pairs at search radius {: 6.3f}".format(nummatched, matchradius))
         return self.matchedCatalog
 
     def updateWCSandUpdateRMS(self, usewcs=None):
@@ -198,13 +197,13 @@ class CatalogMatcher:
         plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.')
         plt.xlabel("RA")
         plt.ylabel("DEC")
-        plt.title (basename)
+        plt.title(basename)
         plt.savefig("%s_RADEC.png" % basename)
         plt.close()
 
         plt.clf()
         plt.subplot(4, 1, 1)
-        plt.title (basename)
+        plt.title(basename)
 
         plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
                  (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
@@ -244,11 +243,15 @@ class CatalogMatcher:
 
 
 class SIPOptimizer:
+    """ Given a matched catalog, iteratively fit a WCS with SIP distortions up to second order.
+
+    """
 
     def __init__(self, newMatchedCatalog, maxorder=2):
+
         self.matchedCatalog = newMatchedCatalog
         if self.matchedCatalog.wcs is None:
-            log.error("Cannot proceed without a wcs in matched catalog. aborting.")
+            log.error("Cannot proceed without a wcs in matched catalog. Aborting.")
             return None
 
         # bootstrap the initial SIP wcs
@@ -258,18 +261,25 @@ class SIPOptimizer:
 
         self.wcsfitparams = [crval[0], crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1]]
 
+        # for the second order, we need 6 paramters, x^2, xy, and  y^2 for each the x and y axis
         if maxorder > 1:
             self.wcsfitparams.extend([0, 0, 0, 0, 0, 0])
 
+        # for the third order, we need to add even more parameters. This is work in progress.
         if maxorder > 2:
             self.wcsfitparams.extend([0, 0, 0, 0])
 
+        # We calculate the inital merrit function before anything else to get a baseline.
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
-        #log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
+        # log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
 
     @staticmethod
     def merritFunction(sipcoefficients, matchedCatalog):
+        """ Calculate a merrit function for a matched catalog based on current understadning of WCS.
+        This function is at the core of the optimizer, as it is the merrit function for the fitting function.
+        """
 
+        # update the matched Catalog's WCS
         matchedCatalog.wcs.wcs.crval[0] = sipcoefficients[0]
         matchedCatalog.wcs.wcs.crval[1] = sipcoefficients[1]
         matchedCatalog.wcs.wcs.cd[0][0] = sipcoefficients[2]
@@ -301,27 +311,22 @@ class SIPOptimizer:
 
         matchedCatalog.wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         matchedCatalog.wcs.wcs.set()
+
+        # Get the rms of the matched catalog.
         merrit = matchedCatalog.updateWCSandUpdateRMS(matchedCatalog.wcs)
-        # log.debug("% 12.9f % 12.9f f % 12.7f" % (sipcoefficients[0], sipcoefficients[1], merrit))
         return merrit
 
     def improveSIP(self):
 
-        deltas = [
-            0.001, 0.001,  # CRVAL
-            1e-5, 1e-5, 1e-5, 1e-5,  # CD Matrix
-            1e-8, 1e-8, 1e-8,  # SIP order 2 A
-            1e-8, 1e-8, 1e-8,  # SIP order 2
-            1e-10, 1e-10, 1e-10, 1e-10,  # SIP ORDER 3
-        ]
-
-        deltas = deltas[:len(self.wcsfitparams)]
         bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
         merrit = SIPOptimizer.merritFunction(bestfit.x, self.matchedCatalog)
-        log.debug("Optimizer return        % 10.4f" % merrit)
+        log.debug("Optimizer return        {: 10.4f}".format(merrit))
 
 
-def iterativelyFitWCSmany(images, args,  refcat=None):
+def iterativelyFitWCSmany(images, args, refcat=None):
+    """ Wrapper to optimize the WCS for a set of images
+    """
+
     if refcat is None:
         refcat = refcat2(args.refcat2)
 
@@ -330,21 +335,25 @@ def iterativelyFitWCSmany(images, args,  refcat=None):
             iterativelyFitWCSsingle(image, args, searchradii=args.searchradii, refcat=refcat)
 
 
-def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat=None):
+def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
+    """ Logistic to start optimizing WCS for a single image.
+    """
 
-    log.info ("Starting to process {}".format (image))
+    log.info("Starting to process {}".format(image))
+
     if refcat is None:
         refcat = refcat2(args.refcat2)
 
     pngbasename = os.path.basename(image)
+
     if args.database:
         wcsdb = wcsfitdatabase(args.database)
-        if wcsdb.checkifalreadyused(pngbasename) and  not args.reprocess:
+        if wcsdb.checkifalreadyused(pngbasename) and not args.reprocess:
             log.info("File already measured. Not doing the wame work twice; skipping")
             wcsdb.close()
             return
 
-    matchedCatalog = CatalogMatcher.createMatchedCatalogForLCOe91(
+    matchedCatalog = CatalogMatcher.createMatchedCatalogForLCO(
         image,
         refcat, searchradii[0], minobjects=args.minmatched, undistort=args.undistort)
 
@@ -353,15 +362,15 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         return
 
     if args.makepng:
-        matchedCatalog.diagnosticPlots('%s_prefit' % pngbasename)
+        matchedCatalog.diagnosticPlots('{:s}_prefit'.format(pngbasename))
 
-    # Preserve the
-    initialPointing = copy.deepcopy (matchedCatalog.wcs.wcs.crval)
+    # Preserve the initial pointing
+    initialPointing = copy.deepcopy(matchedCatalog.wcs.wcs.crval)
 
     # do a full fit
     if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
         log.warning("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (
-        len(matchedCatalog.matchedCatalog['x']), args.minmatched))
+            len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
 
     opt = SIPOptimizer(matchedCatalog, maxorder=args.fitorder)
@@ -373,20 +382,19 @@ def iterativelyFitWCSsingle(image, args, searchradii=[10, 10, 2, 1.5, 1], refcat
         opt.improveSIP()
 
     if args.makepng:
-        matchedCatalog.diagnosticPlots('%s_postfits' % pngbasename)
+        matchedCatalog.diagnosticPlots('{:s}_postfits'.format (pngbasename))
 
     if (args.database):
-        wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None, None, matchedCatalog.azimuth, matchedCatalog.altitude,
-                            wcsdb.wcstojson(matchedCatalog.wcs))
+        wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None,
+                             None, matchedCatalog.azimuth, matchedCatalog.altitude,
+                             wcsdb.wcstojson(matchedCatalog.wcs))
     log.info(matchedCatalog.wcs)
 
     # Final report
     finalPointing = matchedCatalog.wcs.wcs.crval
-    log.info ('Fitting updated pointing at CRPIX by {}"'.format ( (finalPointing-initialPointing)*3600))
+    log.info('Fitting updated pointing at CRPIX by {}"'.format((finalPointing - initialPointing) * 3600.))
     if (args.database):
         wcsdb.close()
-
-
 
 
 def parseCommandLine():
@@ -400,11 +408,13 @@ def parseCommandLine():
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
     parser.add_argument('--fitorder', type=int, default=2)
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
-    parser.add_argument('--undistort', action='store_true', help="Undistort input coordiante catalog before WCS fitting.")
-    parser.add_argument('--reprocess', action='store_true', help="Reprocess even though file may have been processed already.")
+    parser.add_argument('--undistort', action='store_true',
+                        help="Undistort input coordiante catalog before WCS fitting.")
+    parser.add_argument('--reprocess', action='store_true',
+                        help="Reprocess even though file may have been processed already.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
-    parser.add_argument('--searchradii', type=float, nargs='+', default=[10,10,5,3,2])
+    parser.add_argument('--searchradii', type=float, nargs='+', default=[10, 10, 5, 3, 2])
     parser.add_argument('--database', default="wcsfits.sqlite")
     args = parser.parse_args()
 
