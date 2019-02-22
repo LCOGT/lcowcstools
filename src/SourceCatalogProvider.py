@@ -1,13 +1,13 @@
 import abc
-import requests
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import Table
 import sep
 import logging
-
 from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
+
+__author__ = 'drharbeck@gmail.com'
 
 log = logging.getLogger(__name__)
 MIN_AREA = 9

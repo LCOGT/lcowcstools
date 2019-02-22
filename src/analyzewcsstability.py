@@ -5,7 +5,7 @@ import numpy as np
 import json
 import matplotlib.dates as mdates
 from wcsfitsdatabase import wcsfitdatabase
-
+__author__ = 'drharbeck@gmail.com'
 log = logging.getLogger(__name__)
 
 def dateformat (starttime=None,endtime=None):

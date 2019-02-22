@@ -1,11 +1,13 @@
 import argparse
 import logging
-
 import numpy as np
 import requests
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
+__author__ = 'drharbeck@gmail.com'
+
+
 
 log = logging.getLogger(__name__)
 

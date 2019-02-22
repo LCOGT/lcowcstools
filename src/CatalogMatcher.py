@@ -1,5 +1,4 @@
 import logging
-
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -7,10 +6,11 @@ from astropy.io import fits
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-
 from LCOWCSLookupProvider import getWCSForcamera, transformList
 from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
 from SourceCatalogProvider import e91SourceCatalogProvider, SEPSourceCatalogProvider
+
+__author__ = 'drharbeck@gmail.com'
 
 log = logging.getLogger(__name__)
 

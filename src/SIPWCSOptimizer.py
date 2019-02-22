@@ -10,6 +10,8 @@ from CatalogMatcher import CatalogMatcher
 from ReferenceCatalogProvider import refcat2
 from wcsfitsdatabase import wcsfitdatabase
 
+__author__ = 'drharbeck@gmail.com'
+
 log = logging.getLogger(__name__)
 
 

@@ -2,6 +2,8 @@ import logging
 import numpy as np
 from astropy.wcs import Sip
 
+__author__ = 'drharbeck@gmail.com'
+
 log = logging.getLogger(__name__)
 
 akwcslookup = {

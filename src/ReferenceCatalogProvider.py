@@ -9,6 +9,8 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
 
+__author__ = 'drharbeck@gmail.com'
+
 log = logging.getLogger(__name__)
 
 

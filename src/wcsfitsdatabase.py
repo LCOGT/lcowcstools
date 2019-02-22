@@ -10,6 +10,8 @@ from astropy.table import Table
 import numpy as np
 import astropy.time as astt
 
+__author__ = 'drharbeck@gmail.com'
+
 log = logging.getLogger(__name__)
 
 
