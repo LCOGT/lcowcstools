@@ -1,4 +1,6 @@
 import abc
+import re
+
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -62,7 +64,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
     def __init__(self, refineWCSViaLCO=True):
         self.refineWCSViaLCO = refineWCSViaLCO
 
-    def get_source_catalog(self, imagename):
+    def get_source_catalog(self, imagename, ext=1):
 
         image_wcs = None
 
@@ -81,13 +83,31 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
 
         # Create a source catalog
         # TODO:    Better job of identifying the correct fits extension
-        image_data = fitsimage[1].data
+        gain = fitsimage[ext].header.get('GAIN', 3.2)
+
+        try:
+            if 'TRIMSEC' in fitsimage[ext].header:
+                datasec = fitsimage[ext].header['TRIMSEC']
+            else:
+                datasec = fitsimage[ext].header['DATASEC']
+            cs = [int(n) for n in re.split(',|:', datasec[1:-1])]
+            bs = [int(n) for n in re.split(',|:', fitsimage[ext].header['BIASSEC'][1:-1])]
+            ovpixels = fitsimage[ext].data[ bs[2]+1:bs[3]-1, bs[0]+1: bs[1]-1  ]
+            overscan = np.median(ovpixels)
+            std = np.std(ovpixels)
+            overscan = np.mean(ovpixels[np.abs(ovpixels - overscan) < 2 * std])
+            image_data = fitsimage[ext].data[cs[2]-1:cs[3],cs[0]-1:cs[1]] - overscan
+        except:
+            print ("No overscan specified")
+            image_data = fitsimage[ext].data
+
         image_data = image_data.astype(float)
-        backGround = sep.Background(image_data)
+        error = ((np.abs(image_data)*gain) + 8 ** 2.0) ** 0.5 / gain
+        backGround = sep.Background(image_data,  bw=32, bh=32, fw=3, fh=3)
         image_data = image_data - backGround
-        backGround = sep.Background(image_data)
+
         # find sources
-        objects = sep.extract(image_data, 5, backGround.globalrms, deblend_cont=0.005)
+        objects = sep.extract(image_data, 5, err=error, minarea=15, deblend_cont=0.05)
         objects = Table(objects)
         # cleanup
         objects = objects[objects['flag'] < 8]

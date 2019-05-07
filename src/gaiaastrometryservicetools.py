@@ -1,5 +1,8 @@
 import argparse
 import logging
+import math
+from datetime import datetime
+
 import numpy as np
 import requests
 from astropy.io import fits
@@ -60,8 +63,9 @@ def astrometryServicereadWCSFromResponse(response, originalPointing=None):
         log.debug("Updated Gaia-service wcs:\n {}".format(image_wcs))
         newPointing = np.asarray([image_wcs.wcs.crval[0], image_wcs.wcs.crval[1]])
         if originalPointing is not None:
+            delta = (newPointing - originalPointing) * [math.cos (originalPointing[1]*math.pi/180),1] * 3600
             log.info(
-                'Gaia service updated image pointing at CRPIX by {}"'.format((newPointing - originalPointing) * 3600))
+                'Gaia service updated image pointing at CRPIX by {}", distance = {} "'.format(delta, math.sqrt ( (delta*delta).sum())))
     else:
         log.warning("Astrometry.net could not find a solution!")
     return image_wcs
@@ -74,25 +78,26 @@ def astrometryServiceRefineWCSFromImage(imagepath, wcs=None):
         for hdu in fitsimage:
 
             try:
-                wcs = WCS(hdu.header)
-                fitsimage.close()
-                continue
+                if 'CRVAL1' in hdu.header:
+                    originalPointing = [ hdu.header['CRVAL1'],hdu.header['CRVAL2']]
+                    continue
             except:
                 log.warning("NO RA/DEC found yet, trying next extension")
                 wcs = None
-    if wcs is None:
+    if originalPointing is None:
         log.error("No WCS found in image header. skipping")
         return None
 
-    originalPointing = None if wcs is None else np.asarray([wcs.wcs.crval[0], wcs.wcs.crval[1]])
 
-    payload = {'ra': wcs.wcs.crval[0], 'dec': wcs.wcs.crval[1],
+    payload = {'ra': originalPointing[0], 'dec': originalPointing[1],
                'image_path': imagepath,
                }
     try:
+        start = datetime.utcnow()
         response = requests.post("{}/image/".format(LCO_GAIA_ASTROMETRY_URL), json=payload)
         response = response.json()
-        log.debug(response)
+        end = datetime.utcnow()
+        log.info ("Gaia processing took {} s".format ( (end-start).total_seconds()))
     except:
         log.error("Error while executing astrometry.net service with payload:\n %s\n\nGot Response %s" % payload,
                   response)
