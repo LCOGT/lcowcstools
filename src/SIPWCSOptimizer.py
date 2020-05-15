@@ -158,7 +158,7 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
         matchedCatalog.diagnosticPlots('{:s}_postfits'.format (pngbasename))
 
     if (args.database):
-        wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None,
+        wcsdb.addmeasurement(pngbasename, matchedCatalog.matched, matchedCatalog.camera, matchedCatalog.filter, None,
                              None, matchedCatalog.azimuth, matchedCatalog.altitude,
                              wcsdb.wcstojson(matchedCatalog.wcs))
     log.info(matchedCatalog.wcs)
