@@ -4,7 +4,7 @@
 base=/archive/engineering
 cameras="ak01"
 sites="lsc"
-dates="2018????"
+dates="2019????"
 
 inputselection="*-g00.fits.fz"
 
