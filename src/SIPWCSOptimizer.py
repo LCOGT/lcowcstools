@@ -158,7 +158,7 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
         matchedCatalog.diagnosticPlots('{:s}_postfits'.format (pngbasename))
 
     if (args.database):
-        wcsdb.addmeasurement(pngbasename, matchedCatalog.matched, matchedCatalog.camera, matchedCatalog.filter, None,
+        wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None,
                              None, matchedCatalog.azimuth, matchedCatalog.altitude,
                              wcsdb.wcstojson(matchedCatalog.wcs))
     log.info(matchedCatalog.wcs)
@@ -175,7 +175,7 @@ def parseCommandLine():
         description='LCO WCS Tool')
 
     parser.add_argument('--inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
-    parser.add_argument('--refcat2', type=str, default='/nfs/AstroCatalogs/Atlas-refcat2/refcat2.db',
+    parser.add_argument('--refcat2', type=str, default='/Catalogs/refcat2/refcat2.db',
                         help='Location of Atlas refcat2 catalog in slite forrmat')
     parser.add_argument('--minmatched', type=int, default=50,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')

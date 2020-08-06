@@ -20,6 +20,10 @@ LCO_GAIA_ASTROMETRY_URL = 'http://astrometry.lco.gtn/'
 def astrometryServiceRefineWCSFromCatalog(sourceCatalog, wcs):
     originalPointing = np.asarray([wcs.wcs.crval[0], wcs.wcs.crval[1]])
 
+    if len(sourceCatalog['x']) == 0:
+        log.debug ("empty input catalog, skipping")
+        return wcs
+
     payload = {'ra': wcs.wcs.crval[0], 'dec': wcs.wcs.crval[1],
                'crpix1': wcs.wcs.crpix[0], 'crpix2': wcs.wcs.crpix[1],
                'pixel_scale': np.mean(proj_plane_pixel_scales(wcs)) * 3600.,
@@ -30,12 +34,13 @@ def astrometryServiceRefineWCSFromCatalog(sourceCatalog, wcs):
                }
 
     try:
+        response = None
         response = requests.post("{}/catalog/".format(LCO_GAIA_ASTROMETRY_URL), json=payload)
         response = response.json()
         log.debug(response)
     except:
-        log.error("Error while executing astrometry.net service with payload:\n %s\n\nGot Response %s" % payload,
-                  response)
+        log.error("Error while executing astrometry.net service with payload:\n %s\n\nGot Response %s" % (payload,
+                  response))
         return wcs
 
     image_wcs = astrometryServicereadWCSFromResponse(response, originalPointing)
