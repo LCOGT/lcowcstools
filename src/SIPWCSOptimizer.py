@@ -141,9 +141,9 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
     initialPointing = copy.deepcopy(matchedCatalog.wcs.wcs.crval)
 
     # do a full fit
-    if len(matchedCatalog.matchedCatalog['x']) < args.minmatched:
-        log.warning("Not enough stars in input catalog: %d found, %d are required to start. Giving up" % (
-            len(matchedCatalog.matchedCatalog['x']), args.minmatched))
+    if (matchedCatalog.matchedCatalog is None) or (len(matchedCatalog.matchedCatalog['x']) < args.minmatched):
+        log.warning("Not enough stars in input catalog: %s found, %d are required to start. Giving up" % (
+            'None' if matchedCatalog.matchedCatalog is None else len(matchedCatalog.matchedCatalog['x']), args.minmatched))
         return
 
     opt = SIPOptimizer(matchedCatalog, maxorder=args.fitorder)
