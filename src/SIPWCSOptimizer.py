@@ -139,7 +139,6 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
 
     # Preserve the initial pointing
     initialPointing = copy.deepcopy(matchedCatalog.wcs.wcs.crval)
-
     # do a full fit
     if (matchedCatalog.matchedCatalog is None) or (len(matchedCatalog.matchedCatalog['x']) < args.minmatched):
         log.warning("Not enough stars in input catalog: %s found, %d are required to start. Giving up" % (

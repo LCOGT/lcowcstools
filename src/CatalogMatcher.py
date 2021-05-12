@@ -180,6 +180,8 @@ class CatalogMatcher:
     def diagnosticPlots(self, basename):
         ''' Generate some helpful diagnostics for the distortion.
         '''
+        if not self.matchedCatalog:
+            return
 
         sourcera, sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
 
