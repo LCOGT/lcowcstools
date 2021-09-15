@@ -6,8 +6,10 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import Table
 import sep
+import os
 import logging
 from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
+import matplotlib.pyplot as plt
 
 __author__ = 'drharbeck@gmail.com'
 
@@ -64,7 +66,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
     def __init__(self, refineWCSViaLCO=True):
         self.refineWCSViaLCO = refineWCSViaLCO
 
-    def get_source_catalog(self, imagename, ext=1):
+    def get_source_catalog(self, imagename, ext=1, makepng=True):
 
         image_wcs = None
 
@@ -107,7 +109,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
         image_data = image_data - backGround
 
         # find sources
-        objects = sep.extract(image_data, 5, err=error, minarea=15, deblend_cont=0.05)
+        objects = sep.extract(image_data, 5, err=error, minarea=9, deblend_cont=0.05)
         objects = Table(objects)
         # cleanup
         objects = objects[objects['flag'] < 8]
@@ -136,6 +138,17 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
                 image_wcs = original_wcs
         else:
             image_wcs = original_wcs
+
+        if makepng:
+            plt.figure()
+
+            std = np.std (backGround)
+            print (f"{std}")
+            plt.imshow (image_data, clim=[- 2*std, 3 * std], origin='lower')
+            plt.plot (sourcecatalog['x'], sourcecatalog['y'], 'o', mfc='none', color='red')
+            plt.colorbar()
+            plt.savefig(f"{os.path.basename(imagename)}_catalog_detections.png", dpi=150)
+            plt.close()
 
         return sourcecatalog, image_wcs
 

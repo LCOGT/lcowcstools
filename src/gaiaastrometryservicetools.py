@@ -2,12 +2,14 @@ import argparse
 import logging
 import math
 from datetime import datetime
-
+import os
 import numpy as np
 import requests
+import scipy.stats
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_scales
+import matplotlib.pyplot as plt
 __author__ = 'drharbeck@gmail.com'
 
 
@@ -49,6 +51,7 @@ def astrometryServiceRefineWCSFromCatalog(sourceCatalog, wcs):
 
 def astrometryServicereadWCSFromResponse(response, originalPointing=None):
     if response is None:
+        log.warning("Got a None response, igonring")
         return None
 
     image_wcs = None
@@ -72,11 +75,11 @@ def astrometryServicereadWCSFromResponse(response, originalPointing=None):
             log.info(
                 'Gaia service updated image pointing at CRPIX by {}", distance = {} "'.format(delta, math.sqrt ( (delta*delta).sum())))
     else:
-        log.warning("Astrometry.net could not find a solution!")
+        log.warning("Astrometry.net could not find a solution!", response)
     return image_wcs
 
 
-def astrometryServiceRefineWCSFromImage(imagepath, wcs=None):
+def astrometryServiceRefineWCSFromImage(imagepath, wcs=None, makepng = True):
     log.debug(imagepath)
     if wcs is None:
         fitsimage = fits.open(imagepath)
@@ -93,22 +96,43 @@ def astrometryServiceRefineWCSFromImage(imagepath, wcs=None):
         log.error("No WCS found in image header. skipping")
         return None
 
+    try:
+        imagedata = fitsimage[0].data
+
+    except:
+        log.info ("Cannot read image data")
+        imagedata = None
 
     payload = {'ra': originalPointing[0], 'dec': originalPointing[1],
-               'image_path': imagepath,
+               'image_path': imagepath, 'distortion_correct': True
                }
     try:
         start = datetime.utcnow()
         response = requests.post("{}/image/".format(LCO_GAIA_ASTROMETRY_URL), json=payload)
         response = response.json()
         end = datetime.utcnow()
-        log.info ("Gaia processing took {} s".format ( (end-start).total_seconds()))
+        log.info (f"Gaia processing took {(end-start).total_seconds():6.2f} s. response is [{response}]")
     except:
         log.error("Error while executing astrometry.net service with payload:\n %s\n\nGot Response %s" % payload,
                   response)
         return wcs
 
     image_wcs = astrometryServicereadWCSFromResponse(response, originalPointing)
+
+    if makepng and (imagedata is not None):
+        plt.figure()
+        background = np.median(imagedata)
+        std = scipy.stats.median_abs_deviation(imagedata, axis=None)
+        print (f"{std}")
+        plt.imshow (imagedata, clim=[ background - 2*std, background + 3 * std], origin='lower')
+
+        sourcecatalog = response['sextractor_sources']
+        plt.plot (sourcecatalog['X'], sourcecatalog['Y'], 'o', color='red', mfc='none')
+        plt.colorbar()
+        plt.savefig(f"{os.path.basename(imagepath)}_detections.png", dpi=150)
+        plt.close()
+
+
     return image_wcs
 
 
@@ -118,7 +142,7 @@ def parseCommandLine():
 
     parser.add_argument('inputfile', type=str, nargs=1, help="FITS file for which to derive the WCS function.")
 
-    parser.add_argument('--loglevel', dest='log_level', default='DEBUG', choices=['DEBUG', 'INFO', 'WARN'],
+    parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
 
     args = parser.parse_args()
