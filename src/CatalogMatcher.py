@@ -97,7 +97,7 @@ class CatalogMatcher:
                     log.warning("astrometry.net did not find a solution on the undistorted image. Using original wcs")
 
         # fetch a reference catalog:
-        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.25)
+        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 1.00)
 
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)
@@ -201,32 +201,33 @@ class CatalogMatcher:
         plt.title(basename)
 
         plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
+                 (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.')
         plt.xlabel("X [pixels]")
-        plt.ylabel("residual RA [\'\']")
-        plt.ylim([-1.75, 1.75])
+        plt.ylabel("res RA [\'\']")
+        plt.ylim([-4.75, 4.75])
 
         plt.subplot(4, 1, 2)
-        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], (self.matchedCatalog['Dec'] - sourcedec) * 3600.,
+        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], 
+                (self.matchedCatalog['Dec'] - sourcedec) * 3600.,
                  '.')
         plt.xlabel("X [pixels]")
-        plt.ylabel("resiudal Dec [\'\']")
-        plt.ylim([-1.75, 1.75])
+        plt.ylabel("res Dec [\'\']")
+        plt.ylim([-4.75, 4.75])
 
         plt.subplot(4, 1, 3)
         plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. / deccor, '.')
+                 (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.')
         plt.xlabel("Y [pixels]")
-        plt.ylabel("residual ra [\'\']")
-        plt.ylim([-1.75, 1.75])
+        plt.ylabel("res ra [\'\']")
+        plt.ylim([-4.75, 4.75])
 
         plt.subplot(4, 1, 4)
-        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1], (self.matchedCatalog['Dec'] - sourcedec) * 3600.,
-                 '.')
+        plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1],
+                (self.matchedCatalog['Dec'] - sourcedec) * 3600., '.')
         plt.xlabel("Y [pixels]")
-        plt.ylabel("residual dec [\'\']")
-        plt.ylim([-1.75, 1.75])
-        plt.savefig("%s_residuals.png" % basename, dpi=200)
+        plt.ylabel("res dec [\'\']")
+        plt.ylim([-4.75, 4.75])
+        plt.savefig("%s_residuals.png" % basename, dpi=300)
         plt.close()
         # plt.clf()
         # plt.plot(np.sqrt((self.matchedCatalog['y'] - self.wcs.wcs.crpix[1]) ** 2 + (
