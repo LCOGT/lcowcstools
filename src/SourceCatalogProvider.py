@@ -63,7 +63,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
     ''' Submit fits image to LCO GAIA astrometry service for WCS refinenement and run SEP source finder on image data.
     '''
 
-    def __init__(self, refineWCSViaLCO=True):
+    def __init__(self, refineWCSViaLCO=False):
         self.refineWCSViaLCO = refineWCSViaLCO
 
     def get_source_catalog(self, imagename, ext=1, makepng=True):

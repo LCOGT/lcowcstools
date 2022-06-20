@@ -33,7 +33,7 @@ class CatalogMatcher:
         ''' Automatically load source catalog from an LCO e91 processed file, fetch a reference catalog, and return
          a matchedcatalog object.'''
 
-        if ('e91.fits' in imagepath):
+        if ('e91.fits' in imagepath) or ('s91.fits' in imagepath):
             sourceCatalogProvider = e91SourceCatalogProvider()
         else:
             sourceCatalogProvider = SEPSourceCatalogProvider()
@@ -97,7 +97,7 @@ class CatalogMatcher:
                     log.warning("astrometry.net did not find a solution on the undistorted image. Using original wcs")
 
         # fetch a reference catalog:
-        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 1.00)
+        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 1.50)
 
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)
@@ -177,7 +177,7 @@ class CatalogMatcher:
 
         return result
 
-    def diagnosticPlots(self, basename):
+    def diagnosticPlots(self, basename, resrange=20):
         ''' Generate some helpful diagnostics for the distortion.
         '''
         if not self.matchedCatalog:
@@ -188,45 +188,60 @@ class CatalogMatcher:
         deccor = math.cos(self.wcs.wcs.crval[1] * math.pi / 180)
 
         plt.subplot(projection=self.wcs)
-        plt.plot(sourcera, sourcedec, '.')
-        plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.')
+        plt.plot(sourcera, sourcedec, '.', markersize=1)
+        plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.', markersize=1)
         plt.xlabel("RA")
         plt.ylabel("DEC")
         plt.title(basename)
         plt.savefig("%s_RADEC.png" % basename)
         plt.close()
 
-        plt.clf()
-        plt.subplot(4, 1, 1)
-        plt.title(basename)
 
+
+        plt.clf()
+        fig = plt.gcf()
+        fig.set_size_inches(5, 10)
+
+
+        ax1 = plt.subplot(4, 1, 1)
+        plt.title(basename)
         plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.')
+             (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.', markersize=1)
         plt.xlabel("X [pixels]")
         plt.ylabel("res RA [\'\']")
-        plt.ylim([-4.75, 4.75])
+        plt.ylim([-1*resrange,resrange])
 
-        plt.subplot(4, 1, 2)
-        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0], 
-                (self.matchedCatalog['Dec'] - sourcedec) * 3600.,
-                 '.')
+
+        ax2=plt.subplot(4, 1, 2)
+        plt.plot(self.matchedCatalog['x'] - self.wcs.wcs.crpix[0],
+                 (self.matchedCatalog['Dec'] - sourcedec) * 3600.,
+                 '.', markersize=1)
         plt.xlabel("X [pixels]")
         plt.ylabel("res Dec [\'\']")
-        plt.ylim([-4.75, 4.75])
+        plt.ylim([-1*resrange,resrange])
+
+
+
+
+
+
+
 
         plt.subplot(4, 1, 3)
         plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1],
-                 (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.')
+                 (self.matchedCatalog['RA'] - sourcera) * 3600. * deccor, '.', markersize=1)
         plt.xlabel("Y [pixels]")
-        plt.ylabel("res ra [\'\']")
-        plt.ylim([-4.75, 4.75])
+        plt.ylabel("res RA [\'\']")
+        plt.ylim([-1*resrange,resrange])
 
         plt.subplot(4, 1, 4)
         plt.plot(self.matchedCatalog['y'] - self.wcs.wcs.crpix[1],
-                (self.matchedCatalog['Dec'] - sourcedec) * 3600., '.')
+                (self.matchedCatalog['Dec'] - sourcedec) * 3600., '.', markersize=1)
         plt.xlabel("Y [pixels]")
-        plt.ylabel("res dec [\'\']")
-        plt.ylim([-4.75, 4.75])
+        plt.ylabel("res Dec [\'\']")
+        plt.ylim([-1*resrange,resrange])
+
+        plt.tight_layout()
         plt.savefig("%s_residuals.png" % basename, dpi=300)
         plt.close()
         # plt.clf()
