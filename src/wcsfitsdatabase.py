@@ -134,6 +134,15 @@ class wcsfitdatabase:
             jsonwcs['sipb11'] = WCS.sip.b[1][1]
             jsonwcs['sipb20'] = WCS.sip.b[2][0]
             jsonwcs['sipb02'] = WCS.sip.b[0][2]
+        if WCS.sip.a_order > 2:
+            jsonwcs['sipa30'] = WCS.sip.a[3][0]
+            jsonwcs['sipa21'] = WCS.sip.a[2][1]
+            jsonwcs['sipa12'] = WCS.sip.a[1][2]
+            jsonwcs['sipb03'] = WCS.sip.a[0][3]
+            jsonwcs['sipb30'] = WCS.sip.b[3][0]
+            jsonwcs['sipb21'] = WCS.sip.b[2][1]
+            jsonwcs['sipb12'] = WCS.sip.b[1][2]
+            jsonwcs['sipb03'] = WCS.sip.b[0][3]
         return json.dumps(jsonwcs)
 
 

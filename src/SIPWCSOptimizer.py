@@ -9,6 +9,8 @@ from scipy import optimize as optimize
 from CatalogMatcher import CatalogMatcher
 from ReferenceCatalogProvider import refcat2
 from wcsfitsdatabase import wcsfitdatabase
+logging.getLogger('matplotlib.font_manager').disabled = True
+logging.getLogger('PIL.PngImagePlugin').disabled = True
 
 __author__ = 'drharbeck@gmail.com'
 
@@ -40,7 +42,7 @@ class SIPOptimizer:
 
         # for the third order, we need to add even more parameters. This is work in progress.
         if maxorder > 2:
-            self.wcsfitparams.extend([0, 0, 0, 0])
+            self.wcsfitparams.extend([0, 0, 0, 0, 0, 0, 0, 0])
 
         # We calculate the inital merrit function before anything else to get a baseline.
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
@@ -78,6 +80,14 @@ class SIPOptimizer:
             sip_b[3][0] = sipcoefficients[14]
             sip_b[0][3] = sipcoefficients[15]
 
+            sip_a[2][1] = sipcoefficients[16]
+            sip_a[1][2] = sipcoefficients[17]
+            sip_b[2][1] = sipcoefficients[18]
+            sip_b[1][3] = sipcoefficients[19]
+
+
+
+
         sip = Sip(sip_a, sip_b,
                   None, None, matchedCatalog.wcs.wcs.crpix)
         matchedCatalog.wcs.sip = sip
@@ -91,9 +101,10 @@ class SIPOptimizer:
 
     def improveSIP(self):
 
-        bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog))
+        bestfit = optimize.minimize(SIPOptimizer.merritFunction, self.wcsfitparams, args=(self.matchedCatalog), method = 'Nelder-Mead')
         merrit = SIPOptimizer.merritFunction(bestfit.x, self.matchedCatalog)
         log.debug("Optimizer return        {: 10.4f}".format(merrit))
+        log.debug (f"Fit result:\n{bestfit}")
 
 
 def iterativelyFitWCSmany(images, args, refcat=None):
@@ -192,6 +203,7 @@ def parseCommandLine():
 
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
+
     return args
 
 
