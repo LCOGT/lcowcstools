@@ -6,9 +6,10 @@ import numpy as np
 from astropy.wcs import Sip
 from scipy import optimize as optimize
 
-from CatalogMatcher import CatalogMatcher
-from ReferenceCatalogProvider import refcat2
-from wcsfitsdatabase import wcsfitdatabase
+from lcowcstools.CatalogMatcher import CatalogMatcher
+from lcowcstools.ReferenceCatalogProvider import refcat2
+from lcowcstools.wcsfitsdatabase import wcsfitdatabase
+
 logging.getLogger('matplotlib.font_manager').disabled = True
 logging.getLogger('PIL.PngImagePlugin').disabled = True
 
@@ -34,16 +35,23 @@ class SIPOptimizer:
         crval = self.matchedCatalog.wcs.wcs.crval
         cd = self.matchedCatalog.wcs.wcs.cd
 
+        # 6 paramters
         self.wcsfitparams = [crval[0], crval[1], cd[0][0], cd[0][1], cd[1][0], cd[1][1]]
 
         # for the second order, we need 6 paramters, x^2, xy, and  y^2 for each the x and y axis
+        # total of 12 paramters
         if maxorder > 1:
             self.wcsfitparams.extend([0, 0, 0, 0, 0, 0])
 
         # for the third order, we need to add even more parameters. This is work in progress.
+        # total of  20 paramters
         if maxorder > 2:
             self.wcsfitparams.extend([0, 0, 0, 0, 0, 0, 0, 0])
+        # total of 30
+        if maxorder > 3:
+            self.wcsfitparams.extend([0, 0, 0, 0,0,0,0,0,0,0])
 
+        log.info (f"Now optimizing to {maxorder} order. I have a total of {len(self.wcsfitparams)} parameters.")
         # We calculate the inital merrit function before anything else to get a baseline.
         merrit = SIPOptimizer.merritFunction(self.wcsfitparams, self.matchedCatalog)
         # log.info("SIPOptimizer init: merrit function is %12.7f" % (merrit))
@@ -55,6 +63,7 @@ class SIPOptimizer:
         """
 
         # update the matched Catalog's WCS
+        # 1ST ORDER LINEAR FIT
         matchedCatalog.wcs.wcs.crval[0] = sipcoefficients[0]
         matchedCatalog.wcs.wcs.crval[1] = sipcoefficients[1]
         matchedCatalog.wcs.wcs.cd[0][0] = sipcoefficients[2]
@@ -62,11 +71,12 @@ class SIPOptimizer:
         matchedCatalog.wcs.wcs.cd[1][0] = sipcoefficients[4]
         matchedCatalog.wcs.wcs.cd[1][1] = sipcoefficients[5]
 
-        m = 3
+        m = 4
         sip_a = np.zeros((m + 1, m + 1), np.double)
         sip_b = np.zeros((m + 1, m + 1), np.double)
 
         if len(sipcoefficients) > 6:
+        # 2nd order fit
             sip_a[1][1] = sipcoefficients[6]
             sip_a[2][0] = sipcoefficients[7]
             sip_a[0][2] = sipcoefficients[8]
@@ -75,6 +85,7 @@ class SIPOptimizer:
             sip_b[0][2] = sipcoefficients[11]
 
         if len(sipcoefficients) > 12:
+            #3rd order fit
             sip_a[3][0] = sipcoefficients[12]
             sip_a[0][3] = sipcoefficients[13]
             sip_b[3][0] = sipcoefficients[14]
@@ -83,9 +94,23 @@ class SIPOptimizer:
             sip_a[2][1] = sipcoefficients[16]
             sip_a[1][2] = sipcoefficients[17]
             sip_b[2][1] = sipcoefficients[18]
-            sip_b[1][3] = sipcoefficients[19]
+            sip_b[1][2] = sipcoefficients[19]
 
 
+
+        if len (sipcoefficients) > 20:
+            # 4th order fit
+            sip_a[0][4] = sipcoefficients[20]
+            sip_a[1][3] = sipcoefficients[21]
+            sip_a[2][2] = sipcoefficients[22]
+            sip_a[3][2] = sipcoefficients[23]
+            sip_a[4][0] = sipcoefficients[24]
+
+            sip_b[0][4] = sipcoefficients[25]
+            sip_b[1][3] = sipcoefficients[26]
+            sip_b[2][2] = sipcoefficients[27]
+            sip_b[3][2] = sipcoefficients[28]
+            sip_b[4][0] = sipcoefficients[29]
 
 
         sip = Sip(sip_a, sip_b,
@@ -171,7 +196,7 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
         wcsdb.addmeasurement(pngbasename, matchedCatalog.dateobs, matchedCatalog.camera, matchedCatalog.filter, None,
                              None, matchedCatalog.azimuth, matchedCatalog.altitude,
                              wcsdb.wcstojson(matchedCatalog.wcs))
-    log.info(matchedCatalog.wcs)
+    log.info(wcsdb.wcstojson(matchedCatalog.wcs))
 
     # Final report
     finalPointing = matchedCatalog.wcs.wcs.crval
@@ -203,11 +228,16 @@ def parseCommandLine():
 
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
-
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = parseCommandLine()
     log.info("Processing %d input files" % len(args.inputfiles))
     iterativelyFitWCSmany(args.inputfiles, args)
+
+
+if __name__ == '__main__':
+    main()
+
+

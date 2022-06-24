@@ -8,7 +8,7 @@ from astropy.table import Table
 import sep
 import os
 import logging
-from gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
+from lcowcstools.gaiaastrometryservicetools import astrometryServiceRefineWCSFromCatalog
 import matplotlib.pyplot as plt
 
 __author__ = 'drharbeck@gmail.com'

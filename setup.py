@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Daniel Harbeck",
     author_email="dharbeck@lco.global",
-    description="Toosl to model and fit SIP distortion coefficients in LCO and general FITS images.",
+    description="Tools to model and fit SIP distortion coefficients in LCO and general FITS images.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/LCOGT/lcowcstools",
@@ -18,4 +18,10 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    entry_points = {
+        'console_scripts': ['SIPWCSOptimizer = lcowcstools.SIPWCSOptimizer:main'
+                            ],
+
+    },
+    zip_safe=False,
 )
