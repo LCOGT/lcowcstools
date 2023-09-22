@@ -151,7 +151,8 @@ def diagnosticByCamera (cameraname, args):
     plt.tight_layout()
     plt.savefig ("wcstrend_sipab_{}.png".format(cameraname),bbox_extra_artists=(lgd1,lgd2))
 
-    sip = {cameraname: { 'SIPA_1_1' : meana11,
+
+    sip =  {cameraname: { 'SIPA_1_1' : meana11,
                          'SIPA_0_2' : meana02,
                          'SIPA_2_0' : meana20,
                          'SIPB_1_1' : meanb11,

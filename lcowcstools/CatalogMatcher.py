@@ -36,7 +36,7 @@ class CatalogMatcher:
         if ('e91.fits' in imagepath) or ('s91.fits' in imagepath):
             sourceCatalogProvider = e91SourceCatalogProvider()
         else:
-            sourceCatalogProvider = SEPSourceCatalogProvider()
+            sourceCatalogProvider = SEPSourceCatalogProvider(refineWCSViaLCO=True)
 
         sourceCatalog, image_wcs = sourceCatalogProvider.get_source_catalog(imagepath)
         if (sourceCatalog is None) or (image_wcs is None):
