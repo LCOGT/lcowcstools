@@ -7,7 +7,7 @@ from astropy.wcs import Sip
 from scipy import optimize as optimize
 
 from lcowcstools.CatalogMatcher import CatalogMatcher
-from lcowcstools.ReferenceCatalogProvider import refcat2
+from lcowcstools.ReferenceCatalogProvider import refcat2, online_refcat2
 from lcowcstools.wcsfitsdatabase import wcsfitdatabase
 
 logging.getLogger('matplotlib.font_manager').disabled = True
@@ -137,7 +137,7 @@ def iterativelyFitWCSmany(images, args, refcat=None):
     """
 
     if refcat is None:
-        refcat = refcat2(args.refcat2)
+        refcat =  online_refcat2(args.refcat2)
 
     if len(images) > 0:
         for image in images:
@@ -210,7 +210,7 @@ def parseCommandLine():
         description='LCO WCS Tool')
 
     parser.add_argument('--inputfiles', type=str, nargs='+', help="FITS file for which to derive the WCS function.")
-    parser.add_argument('--refcat2', type=str, default='/Catalogs/refcat2/refcat2.db',
+    parser.add_argument('--refcat2', type=str, default='http://phot-catalog.lco.gtn/',
                         help='Location of Atlas refcat2 catalog in slite forrmat')
     parser.add_argument('--minmatched', type=int, default=50,
                         help='Minimum number of matched stars to accept solution or even proceed to fit.')
