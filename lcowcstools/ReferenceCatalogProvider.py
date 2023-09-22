@@ -195,7 +195,7 @@ class online_refcat2:
             return None
 
         table = self.PStoSDSS(table)
-
+        print (table)
         return table
 
 
