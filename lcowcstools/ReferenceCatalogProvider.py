@@ -81,7 +81,7 @@ class refcat2(ReferenceCatalogProvider):
 
         :param dbfile: location of the consolidated refcat2 slite database
         """
-
+        exit (1)
         if (dbfile is None) or (not os.path.isfile(dbfile)):
             log.error("Unable to find reference catalog: %s" % (str(dbfile)))
             self.dbfile = None
@@ -127,7 +127,7 @@ class refcat2(ReferenceCatalogProvider):
             sql_command = sql_command.format(ramin=min_ra, ramax=max_ra, decmin=min_dec, decmax=max_dec)
             cursor.execute(sql_command)
             rows = np.asarray(cursor.fetchall())
-            table = Table(rows, names=['RA', 'Dec', 'g', 'r', 'i', 'z'])
+            table = Table(rows, names=['ra', 'Dec', 'g', 'r', 'i', 'z'])
             cursor.close()
         except:
             log.exception("While trying to read from database:")
@@ -191,11 +191,11 @@ class online_refcat2:
             response.raise_for_status()
             table = Table(response.json())
         except Exception as e:
-            _logger.exception(f"While trying to read from refcat2: {e}")
+            log.exception(f"While trying to read from refcat2: {e}")
             return None
 
         table = self.PStoSDSS(table)
-        print (table)
+
         return table
 
 

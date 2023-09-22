@@ -132,7 +132,7 @@ class CatalogMatcher:
             sourcera, sourcedec = self.wcs.all_pix2world(self.source['x'], self.source['y'], 1)
             sourceSkyCoords = SkyCoord(ra=sourcera * u.degree, dec=sourcedec * u.degree)
 
-            referenceSkyCoords = SkyCoord(ra=self.reference['RA'] * u.degree, dec=self.reference['Dec'] * u.degree)
+            referenceSkyCoords = SkyCoord(ra=self.reference['ra'] * u.degree, dec=self.reference['dec'] * u.degree)
 
             idx, d2d, d3d = referenceSkyCoords.match_to_catalog_sky(sourceSkyCoords)
             distance = referenceSkyCoords.separation(sourceSkyCoords[idx]).arcsecond
@@ -140,8 +140,8 @@ class CatalogMatcher:
             matchcondition = (distance < matchradius)
             self.matchedCatalog = Table([self.source['x'][idx][matchcondition],
                                          self.source['y'][idx][matchcondition],
-                                         self.reference['RA'][matchcondition],
-                                         self.reference['Dec'][matchcondition],
+                                         self.reference['ra'][matchcondition],
+                                         self.reference['dec'][matchcondition],
                                          distance[matchcondition]
                                          ],
                                         names=['x', 'y', 'RA', 'Dec', 'distarcsec']
@@ -186,13 +186,13 @@ class CatalogMatcher:
         sourcera, sourcedec = self.wcs.all_pix2world(self.matchedCatalog['x'], self.matchedCatalog['y'], 1)
 
         deccor = math.cos(self.wcs.wcs.crval[1] * math.pi / 180)
-
         plt.subplot(projection=self.wcs)
-        plt.plot(sourcera, sourcedec, '.', markersize=1)
-        plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.', markersize=1)
+        plt.plot(sourcera, sourcedec, '.', markersize=1, label="sources")
+        plt.plot(self.matchedCatalog['RA'], self.matchedCatalog['Dec'], '.', markersize=1,label='reference')
         plt.xlabel("RA")
         plt.ylabel("DEC")
         plt.title(basename)
+        plt.legend()
         plt.savefig("%s_RADEC.png" % basename)
         plt.close()
 
