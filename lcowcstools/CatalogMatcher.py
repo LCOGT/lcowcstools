@@ -97,7 +97,7 @@ class CatalogMatcher:
                     log.warning("astrometry.net did not find a solution on the undistorted image. Using original wcs")
 
         # fetch a reference catalog:
-        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 1.50)
+        referenceCatalog = referenceCatalogProvider.get_reference_catalog(ra, dec, 0.30)
 
         matchedCatalog = CatalogMatcher()
         matchedCatalog.matchCatalogs(sourceCatalog, referenceCatalog, image_wcs, matchradius)

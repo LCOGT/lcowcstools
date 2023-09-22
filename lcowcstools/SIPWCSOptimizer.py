@@ -151,7 +151,7 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
     log.info("Starting to process {}".format(image))
 
     if refcat is None:
-        refcat = refcat2(args.refcat2)
+        refcat = online_refcat2(args.refcat2)
 
     pngbasename = os.path.basename(image)
 
