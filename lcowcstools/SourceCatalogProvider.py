@@ -66,7 +66,7 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
     def __init__(self, refineWCSViaLCO=False):
         self.refineWCSViaLCO = refineWCSViaLCO
 
-    def get_source_catalog(self, imagename, ext=1, makepng=True):
+    def get_source_catalog(self, imagename, ext=1, makepng=False):
 
         image_wcs = None
 
