@@ -158,7 +158,7 @@ def iterativelyFitWCSsingle(image, args, searchradii, refcat=None):
     if args.database:
         wcsdb = wcsfitdatabase(args.database)
         if wcsdb.checkifalreadyused(pngbasename) and not args.reprocess:
-            log.info("File already measured. Not doing the wame work twice; skipping")
+            log.info("File already measured. Not repeating work; skipping")
             wcsdb.close()
             return
 
@@ -217,7 +217,7 @@ def parseCommandLine():
     parser.add_argument('--fitorder', type=int, default=2)
     parser.add_argument('--makepng', action='store_true', help="Create a png output of wcs before and after fit.")
     parser.add_argument('--undistort', action='store_true',
-                        help="Undistort input coordiante catalog before WCS fitting.")
+                        help="Undistort input coordinate catalog before WCS fitting.")
     parser.add_argument('--reprocess', action='store_true',
                         help="Reprocess even though file may have been processed already.")
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
