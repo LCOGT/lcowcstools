@@ -151,10 +151,10 @@ def diagnosticByCamera (cameraname, args):
     plt.plot (dateobs, sip_a11, 'o',label="A_1_1 {: 6e}".format (meana11))
     plt.plot (dateobs, sip_a20, 'o',label="A_2_0 {: 6e}".format (meana20))
     plt.plot (dateobs, sip_a02, 'o',label="A_0_2 {: 6e}".format (meana02))
-    plt.plot (dateobs, sip_a30, 'o',label="A_3_0 {: 6e}".format (meana30))
-    plt.plot (dateobs, sip_a21, 'o',label="A_2_1 {: 6e}".format (meana21))
-    plt.plot (dateobs, sip_a12, 'o',label="A_1_2 {: 6e}".format (meana12))
-    plt.plot (dateobs, sip_a03, 'o',label="A_0_3 {: 6e}".format (meana03))
+    plt.plot (dateobs, sip_a30, 'o',label="A_3_0 {: 7e}".format (meana30))
+    plt.plot (dateobs, sip_a21, 'o',label="A_2_1 {: 7e}".format (meana21))
+    plt.plot (dateobs, sip_a12, 'o',label="A_1_2 {: 7e}".format (meana12))
+    plt.plot (dateobs, sip_a03, 'o',label="A_0_3 {: 7e}".format (meana03))
 
     for ii in (meana11,meana20,meana02,meana30,meana21,meana12,meana03):
         plt.axhline(ii)
@@ -177,10 +177,10 @@ def diagnosticByCamera (cameraname, args):
     plt.plot (dateobs, sip_b11, 'o',label="B_1_1 {: 6e}".format (meanb11))
     plt.plot (dateobs, sip_b20, 'o',label="B_2_0 {: 6e}".format (meanb20))
     plt.plot (dateobs, sip_b02, 'o',label="B_0_2 {: 6e}".format (meanb02))
-    plt.plot (dateobs, sip_b30, 'o',label="B_3_0 {: 6e}".format (meanb30))
-    plt.plot (dateobs, sip_b21, 'o',label="B_2_1 {: 6e}".format (meanb21))
-    plt.plot (dateobs, sip_b12, 'o',label="B_1_2 {: 6e}".format (meanb12))
-    plt.plot (dateobs, sip_b03, 'o',label="B_0_3 {: 6e}".format (meanb03))
+    plt.plot (dateobs, sip_b30, 'o',label="B_3_0 {: 7e}".format (meanb30))
+    plt.plot (dateobs, sip_b21, 'o',label="B_2_1 {: 7e}".format (meanb21))
+    plt.plot (dateobs, sip_b12, 'o',label="B_1_2 {: 7e}".format (meanb12))
+    plt.plot (dateobs, sip_b03, 'o',label="B_0_3 {: 7e}".format (meanb03))
 
     lgd2 = plt.legend(bbox_to_anchor=(0,01.02,1,0.2), loc="lower left",
                mode="expand", borderaxespad=0, ncol=3)
