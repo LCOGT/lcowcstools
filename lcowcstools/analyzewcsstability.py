@@ -66,6 +66,15 @@ def diagnosticByCamera (cameraname, args):
     sip_b11 = []
     sip_b02 = []
 
+    sip_a30 = []
+    sip_a21 = []
+    sip_a12 = []
+    sip_a03 = []
+    sip_b30 = []
+    sip_b21 = []
+    sip_b12 = []
+    sip_b03 = []
+
     filterset = set (allsolutions['filter'])
     dateobs = allsolutions['dateobs']
     log.info ("Set of individual filters: {}".format (filterset))
@@ -83,6 +92,16 @@ def diagnosticByCamera (cameraname, args):
         sip_b20.append (wcs['sipb20'])
         sip_b11.append (wcs['sipb11'])
         sip_b02.append (wcs['sipb02'])
+
+        sip_a30.append (wcs.get("sipa30",0.0))
+        sip_a21.append (wcs.get("sipa21",0.0))
+        sip_a12.append (wcs.get("sipa12",0.0))
+        sip_a03.append (wcs.get("sipa03",0.0))
+        sip_b30.append (wcs.get("sipab0",0.0))
+        sip_b21.append (wcs.get("sipb21",0.0))
+        sip_b12.append (wcs.get("sipb12",0.0))
+        sip_b03.append (wcs.get("sipb03",0.0))
+
     cd11 = np.asarray (cd11)
     cd12 = np.asarray (cd12)
     cd21 = np.asarray (cd21)
@@ -93,6 +112,16 @@ def diagnosticByCamera (cameraname, args):
     sip_b20 = np.asarray (sip_b20)
     sip_b11 = np.asarray (sip_b11)
     sip_b02 = np.asarray (sip_b02)
+
+    sip_a30 = np.asarray (sip_a30)
+    sip_a21 = np.asarray (sip_a21)
+    sip_a12 = np.asarray (sip_a12)
+    sip_a03 = np.asarray (sip_a03)
+    sip_b30 = np.asarray (sip_b30)
+    sip_b21 = np.asarray (sip_b21)
+    sip_b12 = np.asarray (sip_b12)
+    sip_b03 = np.asarray (sip_b03)
+
 
     plt.plot (dateobs, cd11, 'o', label="CD11_{}".format (filter))
     plt.plot (dateobs, cd22, 'o', label="CD22_{}".format (filter))
@@ -109,22 +138,26 @@ def diagnosticByCamera (cameraname, args):
     plt.savefig ("wcstrend_cdnondiag_{}.png".format (cameraname))
     plt.close()
 
-
-
-
-
-
     fig = plt.figure(figsize=(10, 8))
     plt.subplot(211)
     meana11 = getmeanValue(sip_a11)
     meana02 = getmeanValue(sip_a02)
     meana20 = getmeanValue(sip_a20)
+    meana30 = getmeanValue(sip_a30)
+    meana21 = getmeanValue(sip_a21)
+    meana12 = getmeanValue(sip_a12)
+    meana03 = getmeanValue(sip_a03)
+
     plt.plot (dateobs, sip_a11, 'o',label="A_1_1 {: 6e}".format (meana11))
     plt.plot (dateobs, sip_a20, 'o',label="A_2_0 {: 6e}".format (meana20))
     plt.plot (dateobs, sip_a02, 'o',label="A_0_2 {: 6e}".format (meana02))
-    plt.axhline(meana11)
-    plt.axhline(meana20)
-    plt.axhline(meana02)
+    plt.plot (dateobs, sip_a30, 'o',label="A_3_0 {: 6e}".format (meana30))
+    plt.plot (dateobs, sip_a21, 'o',label="A_2_1 {: 6e}".format (meana21))
+    plt.plot (dateobs, sip_a12, 'o',label="A_1_2 {: 6e}".format (meana12))
+    plt.plot (dateobs, sip_a03, 'o',label="A_0_3 {: 6e}".format (meana03))
+
+    for ii in (meana11,meana20,meana02,meana30,meana21,meana12,meana03):
+        plt.axhline(ii)
 
     lgd1=plt.legend(bbox_to_anchor=(0,01.02,1,0.2), loc="lower left",
                mode="expand", borderaxespad=0, ncol=3)
@@ -136,29 +169,39 @@ def diagnosticByCamera (cameraname, args):
     meanb11 = getmeanValue(sip_b11)
     meanb02 = getmeanValue(sip_b02)
     meanb20 = getmeanValue(sip_b20)
+    meanb30 = getmeanValue(sip_b30)
+    meanb21 = getmeanValue(sip_b21)
+    meanb12 = getmeanValue(sip_b12)
+    meanb03 = getmeanValue(sip_b03)
+
     plt.plot (dateobs, sip_b11, 'o',label="B_1_1 {: 6e}".format (meanb11))
     plt.plot (dateobs, sip_b20, 'o',label="B_2_0 {: 6e}".format (meanb20))
     plt.plot (dateobs, sip_b02, 'o',label="B_0_2 {: 6e}".format (meanb02))
+    plt.plot (dateobs, sip_b30, 'o',label="B_3_0 {: 6e}".format (meanb30))
+    plt.plot (dateobs, sip_b21, 'o',label="B_2_1 {: 6e}".format (meanb21))
+    plt.plot (dateobs, sip_b12, 'o',label="B_1_2 {: 6e}".format (meanb12))
+    plt.plot (dateobs, sip_b03, 'o',label="B_0_3 {: 6e}".format (meanb03))
 
     lgd2 = plt.legend(bbox_to_anchor=(0,01.02,1,0.2), loc="lower left",
                mode="expand", borderaxespad=0, ncol=3)
     dateformat()
-    plt.axhline(meanb11)
-    plt.axhline(meanb20)
-    plt.axhline(meanb02)
+    for ii in (meanb11,meanb20,meanb02,meanb30,meanb21,meanb12,meanb03):
+        plt.axhline(ii)
     plt.ylabel ("SIP B coefficient")
 
     plt.tight_layout()
     plt.savefig ("wcstrend_sipab_{}.png".format(cameraname),bbox_extra_artists=(lgd1,lgd2))
 
+    decimals = 12
+    sip =  {cameraname: {'SIPA_1_1' : round(meana11,decimals), 'SIPA_0_2' : round(meana02, decimals),
+                         'SIPA_2_0' : round(meana20,decimals), 'SIPB_1_1' : round (meanb11, decimals),
+                         'SIPB_0_2' : round(meanb02,decimals), 'SIPB_2_0' : round(meanb20,decimals),
 
-    sip =  {cameraname: { 'SIPA_1_1' : meana11,
-                         'SIPA_0_2' : meana02,
-                         'SIPA_2_0' : meana20,
-                         'SIPB_1_1' : meanb11,
-                         'SIPB_0_2' : meanb02,
-                         'SIPB_2_0' : meanb20,
+                         'SIPA_3_0' : meana30, 'SIPA_2_1' : meana21,'SIPA_1_2' : meana12,'SIPA_0_3' : meana03,
+                         'SIPB_3_0' : meanb30, 'SIPB_2_1' : meanb21,'SIPB_1_2' : meanb12,'SIPB_0_3' : meanb03,
                          }}
+    from json import encoder
+
     print (sip)
 
     plt.close()
@@ -191,7 +234,17 @@ def diagnosticByCamera (cameraname, args):
     plt.savefig("wcstrans_flexurecd_{}".format(cameraname))
     plt.close()
 
-
+class PrettyFloat(float):
+    def __repr__(self):
+        return '%.15g' % self
+def pretty_floats(obj):
+    if isinstance(obj, float):
+        return PrettyFloat(obj)
+    elif isinstance(obj, dict):
+        return dict((k, pretty_floats(v)) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple)):
+        return list(map(pretty_floats, obj))
+    return obj
 
 
 if __name__ == '__main__':
