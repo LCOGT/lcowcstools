@@ -141,7 +141,7 @@ def parseCommandLine():
         description='LCO WCS Tools - gaiaastrometryservicetools')
 
     parser.add_argument('inputfile', type=str, nargs=1, help="FITS file for which to derive the WCS function.")
-
+    parser.add_argument('--update', action='store_true',)
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
 
@@ -152,7 +152,26 @@ def parseCommandLine():
     return args
 
 
+def saveupdatedimage(file, wcs):
+
+    fitsobj = fits.open(file)
+
+    fitsobj['SCI'].header.update(wcs.to_header())
+    newname = file.replace('.fz','')
+    newname = newname.replace ('.fits','')
+    newname = f'{newname}-wcsupdate.fits'
+    log.info (f"Creating new file with updated WCS: {newname}")
+    fitsobj.writeto(newname, overwrite=True)
+
+
+
+
 if __name__ == '__main__':
     args = parseCommandLine()
     for file in args.inputfile:
-        astrometryServiceRefineWCSFromImage(file, None)
+        wcs = astrometryServiceRefineWCSFromImage(file, None)
+        if args.update:
+            saveupdatedimage(file,wcs)
+
+
+
