@@ -86,6 +86,8 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
         # Create a source catalog
         # TODO:    Better job of identifying the correct fits extension
         gain = fitsimage[ext].header.get('GAIN', 3.2)
+        readnoise = fitsimage[ext].header.get('RDNOISE', 7)
+        log.debug(f"Gain: {gain} e-/ADU readnoise {readnoise} e-")
 
         try:
             if 'TRIMSEC' in fitsimage[ext].header:
@@ -104,18 +106,18 @@ class SEPSourceCatalogProvider(SourceCatalogProvider):
             image_data = fitsimage[ext].data
 
         image_data = image_data.astype(float)
-        error = ((np.abs(image_data)*gain) + 8 ** 2.0) ** 0.5 / gain
-        backGround = sep.Background(image_data,  bw=32, bh=32, fw=3, fh=3)
+        error = ((np.abs(image_data)*gain) + readnoise ** 2.0) ** 0.5 / gain
+        backGround = sep.Background(image_data,  bw=64, bh=64, fw=5, fh=5)
         image_data = image_data - backGround
 
         # find sources
-        objects = sep.extract(image_data, 5, err=error, minarea=9, deblend_cont=0.05)
+        objects = sep.extract(image_data, 5, err=error, minarea=11, deblend_cont=0.05)
         objects = Table(objects)
         # cleanup
         objects = objects[objects['flag'] < 8]
         objects = prune_nans_from_table(objects)
         fwhm = 2.0 * (np.log(2) * (objects['a'] ** 2.0 + objects['b'] ** 2.0)) ** 0.5
-        objects = objects[fwhm > 1.0]
+        objects = objects[fwhm > 1]
 
         flux_radii, flag = sep.flux_radius(image_data, objects['x'], objects['y'],
                                            6.0 * objects['a'], [0.25, 0.5, 0.75],
