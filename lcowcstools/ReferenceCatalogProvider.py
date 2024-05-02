@@ -176,6 +176,7 @@ class online_refcat2:
         :param table:
         :return: modified table.
         """
+        return table
         if table is not None:
             pscolor = table['gmag'] - table['imag']
             for filter in self.ps1colorterms:
