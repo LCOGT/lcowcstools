@@ -37,6 +37,7 @@ def astrometryServiceRefineWCSFromCatalog(sourceCatalog, wcs):
 
     try:
         response = None
+        log.debug (f"Gaia Payload: {payload}")
         response = requests.post("{}/catalog/".format(LCO_GAIA_ASTROMETRY_URL), json=payload)
         response = response.json()
         log.debug(response)
