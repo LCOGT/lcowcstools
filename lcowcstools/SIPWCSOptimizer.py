@@ -223,6 +223,7 @@ def parseCommandLine():
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARN'],
                         help='Set the debug level')
     parser.add_argument('--searchradii', type=float, nargs='+', default=[10, 10, 5, 3, 2])
+    parser.add_argument ("--catradius", default = 0.2, help="Search radius in the reference catalog")
     parser.add_argument('--database', default="wcsfits.sqlite")
     args = parser.parse_args()
 
